@@ -1,0 +1,39 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.0.1
+    hooks:
+      - id: autoflake
+        args: [
+          --remove-all-unused-imports,
+          --ignore-init-module-imports,  # 忽略 __init__.py 中的导入
+          --expand-star-imports,
+          --remove-duplicate-keys,
+          --remove-unused-variables,
+          --recursive,
+          --in-place,
+          --exclude=__init__.py,  # 排除 __init__.py 文件
+        ]
+        files: \.py$  # 只处理 Python 文件
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: [
+          "--profile", "black",  # 使用 black 兼容的配置
+          "--filter-files",
+          "--lines-after-imports=2",
+        ]
