@@ -2,17 +2,25 @@
 
 A simple web interface for interacting with AI agents' code generation capabilities. This project draws inspiration from two excellent projects: [SWEAgent](https://github.com/SWE-agent/SWE-agent) and [OpenHands](https://github.com/All-Hands-AI/OpenHands)
 
-## Setup
-1. Clone the repository
+## Setup with Conda
+1. Create and activate a new conda environment
+   ```sh
+   conda create -n agent python=3.12
+   conda activate agent
+   ```
+
+2. Clone the repository
    ```sh
    git clone https://github.com/mannaandpoem/Agent-Next-Web.git
    cd Agent-Next-Web
    ```
-2. Install requirements:
-   ```bash
+
+3. Install requirements
+   ```sh
    pip install -r requirements.txt
    ```
-3. Configure your API keys in `config/config.yaml`
+
+4. Configure your API keys in `config/config.yaml`
 
 ## Usage
 Run the application:
