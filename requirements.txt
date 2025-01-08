@@ -3,3 +3,4 @@ openai~=1.58.1
 tenacity~=9.0.0
 pyyaml~=6.0.2
 loguru~=0.7.3
+openhands-aci~=0.1.7
