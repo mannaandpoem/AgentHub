@@ -2,6 +2,10 @@
 
 A simple web interface for interacting with AI agents' code generation capabilities. This project draws inspiration from two excellent projects: [SWEAgent](https://github.com/SWE-agent/SWE-agent) and [OpenHands](https://github.com/All-Hands-AI/OpenHands)
 
+## Requirements
+* **python >= 3.12**
+* **conda**
+
 ## Setup with Conda
 1. Create and activate a new conda environment
    ```sh
