@@ -1,24 +1,24 @@
-from swe.action.execute_bash import ExecuteBash
-from swe.agent.base import BaseAgent
-from swe.logger import logger
-from swe.schema import AgentState, Message
+from codeact.action.execute_bash import ExecuteBash
+from codeact.agent.base import BaseAgent
+from codeact.logger import logger
+from codeact.schema import AgentState, Message
 
 from openhands_aci import file_editor
 
-from swe.prompts.function_calling import get_tools
-from swe.prompts.prompts import SYSTEM_PROMPT, NEXT_STEP_PROMPT
+from codeact.prompts.function_calling import get_tools
+from codeact.prompts.prompts import SYSTEM_PROMPT, NEXT_STEP_PROMPT
 
 from typing import Dict, List
 from pydantic import Field, model_validator
 import inspect
 import traceback
 
-from swe.utils import transform_tool_call_to_command, parse_oh_aci_output
+from codeact.utils import transform_tool_call_to_command, parse_oh_aci_output
 
 
-class SWEAgent(BaseAgent):
-    """An agent that implements the SWEAgent paradigm for executing code and natural conversations."""
-    name: str = "SWEAgent"
+class CodeActAgent(BaseAgent):
+    """An agent that implements the CodeActAgent paradigm for executing code and natural conversations."""
+    name: str = "CodeActAgent"
     description: str = "an autonomous AI programmer that interacts directly with the computer to solve tasks."
 
     system_prompt: str = SYSTEM_PROMPT
@@ -35,7 +35,7 @@ class SWEAgent(BaseAgent):
     working_dir: str = ""
 
     @model_validator(mode="after")
-    def set_tool_execution(self) -> "SWEAgent":
+    def set_tool_execution(self) -> "CodeActAgent":
         """Update available tools and their execution methods"""
         self.tool_execution_map = {
             "execute_bash": self.bash.run,
@@ -126,7 +126,7 @@ class SWEAgent(BaseAgent):
 
     async def _finish(self, message: str = "") -> str:
         """Finish the current execution"""
-        self.state = AgentState.IDLE
+        self.state = AgentState.FINISHED
         return message or "Execution completed"
 
     @staticmethod

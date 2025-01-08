@@ -1,7 +1,7 @@
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
-from swe.config import LLMSettings, config
+from codeact.config import LLMSettings, config
 from typing import Optional, Literal, List
 from openai.types.chat import ChatCompletionMessage
 from tenacity import retry, wait_random_exponential, stop_after_attempt

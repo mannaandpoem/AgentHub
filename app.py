@@ -1,10 +1,10 @@
 import asyncio
 
-from swe.agent.swe import SWEAgent
+from codeact.agent.codeact import CodeActAgent
 
 
 async def main():
-    agent = SWEAgent()
+    agent = CodeActAgent()
     while True:
         try:
             prompt = input("\nEnter your prompt (or 'exit' to quit): ")

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from loguru import logger as _logger
 
-from swe.config import CODEACT_ROOT
+from codeact.config import CODEACT_ROOT
 
 
 _print_level = "INFO"

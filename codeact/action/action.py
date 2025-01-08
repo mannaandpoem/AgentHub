@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
-from swe.llm import LLM
+from codeact.llm import LLM
 
 
 class Action(BaseModel):

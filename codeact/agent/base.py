@@ -1,11 +1,11 @@
 from pydantic import BaseModel, model_validator, Field
 from abc import ABC, abstractmethod
 
-from swe.action.action import Action
-from swe.llm import LLM
-from swe.schema import Memory, AgentState, Message
+from codeact.action.action import Action
+from codeact.llm import LLM
+from codeact.schema import Memory, AgentState, Message
 
-from typing import Dict, List, Optional, Type, Any, Callable, AsyncGenerator
+from typing import Dict, List, Optional, Type, Any
 from contextlib import asynccontextmanager
 import logging
 import asyncio
