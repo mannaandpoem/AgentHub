@@ -87,16 +87,6 @@ class BaseAgent(BaseModel, ABC):
         except Exception as e:
             logger.error(f"Error summarizing memory: {str(e)}")
 
-    async def reset(self, clear_memory: bool = True) -> None:
-        """Reset agent state"""
-        self.state = AgentState.IDLE
-        self.current_step = 0
-
-        if clear_memory:
-            self.memory = Memory()
-
-        logger.info(f"Agent reset (clear_memory={clear_memory})")
-
     def update_memory(self, role: str, content: str, **kwargs) -> None:
         """Update memory with new message"""
         if role == "user":
@@ -118,25 +108,14 @@ class BaseAgent(BaseModel, ABC):
     def plan(self, objective: str) -> List[str]:
         """Decompose objective into a sequential list of subtasks."""
 
-    async def run(
-        self,
-        request: Optional[str] = None,
-        max_steps: Optional[int] = None,
-        raise_on_error: bool = True,
-        reset_before_run: bool = True,
-    ) -> str:
+    async def run(self, request: Optional[str] = None) -> str:
         """Main execution loop"""
-        if reset_before_run:
-            await self.reset()
-
         if request:
             self.update_memory("user", request)
 
-        steps_limit = max_steps or self.max_steps
         results = []
-
         async with self.state_context(AgentState.RUNNING):
-            while self.current_step < steps_limit:
+            while self.current_step < self.max_steps:
                 self.current_step += 1
 
                 try:
@@ -159,14 +138,12 @@ class BaseAgent(BaseModel, ABC):
                     logger.error(error_msg)
                     self.update_memory("assistant", f"Error: {error_msg}")
 
-                    if raise_on_error:
-                        raise
                     results.append(error_msg)
                     break
 
                 await asyncio.sleep(0)
 
-            if self.current_step >= steps_limit:
-                results.append(f"Reached maximum steps limit ({steps_limit})")
+            if self.current_step >= self.max_steps:
+                results.append(f"Reached maximum steps limit ({self.max_steps})")
 
         return "\n".join(results)

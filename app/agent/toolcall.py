@@ -1,6 +1,6 @@
 import inspect
 import traceback
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from openai.types.chat import ChatCompletionToolParam
 from pydantic import Field, model_validator
@@ -8,6 +8,8 @@ from pydantic import Field, model_validator
 from app.agent.base import BaseAgent
 from app.logger import logger
 from app.schema import AgentState, Message
+from app.tool.bash import Bash
+from app.tool.finish import Finish
 from app.tool.tool import Tool
 from app.utils import transform_tool_call_to_command
 
@@ -15,9 +17,13 @@ from app.utils import transform_tool_call_to_command
 class ToolCallAgent(BaseAgent):
     """Base agent class for handling tool/function calls with enhanced abstraction"""
 
-    tools: List[Tool] = Field(default_factory=list)
+    name: str = "ToolCallAgent"
+    description: str = "an agent that can execute tool calls."
+
+    tools: List[Tool] = Field(default_factory=lambda: [Bash, Finish])
+    tool_choices: Literal["none", "auto", "required"] = "auto"
     tool_execution_map: Dict[str, callable] = Field(default_factory=dict)
-    special_tool_commands: List[str] = Field(default_factory=list)
+    special_tool_commands: List[str] = Field(default_factory=lambda: ["finish"])
     commands: List[dict] = Field(default_factory=list)
 
     max_steps: int = 30
@@ -41,15 +47,16 @@ class ToolCallAgent(BaseAgent):
 
         response = await self.llm.aask_function(
             messages=messages,
+            system_msgs=[self.system_prompt] if self.system_prompt else None,
             tools=self.get_tool_params(),
-            system_msgs=[self.system_prompt],
+            tool_choice=self.tool_choices,
         )
 
         logger.info(f"Tool content: {response.content}")
         logger.info(f"Tool calls: {response.tool_calls}")
 
         # Update state and memory
-        self.commands = response.tool_calls
+        self.commands = response.tool_calls or []
 
         # Create and add assistant message
         assistant_msg = Message.from_tool_calls(
