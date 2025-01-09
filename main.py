@@ -1,6 +1,7 @@
 import asyncio
 
 from app.agent.codeact import CodeActAgent
+from app.logger import logger
 
 
 async def main():
@@ -9,12 +10,12 @@ async def main():
         try:
             prompt = input("\nEnter your prompt (or 'exit' to quit): ")
             if prompt.lower() == "exit":
-                print("Goodbye!")
+                logger.info("Goodbye!")
                 break
-            print("\nProcessing your request...\n")
+            logger.warning("\nProcessing your request...\n")
             await agent.run(prompt)
         except KeyboardInterrupt:
-            print("\nGoodbye!")
+            logger.warning("\nGoodbye!")
             break
 
 
