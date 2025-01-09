@@ -1,18 +1,18 @@
-from pydantic import BaseModel, model_validator, Field
-from abc import ABC, abstractmethod
-
-from codeact.action.action import Action
-from codeact.llm import LLM
-from codeact.schema import Memory, AgentState, Message
-
-from typing import Dict, List, Optional, Type, Any
-from contextlib import asynccontextmanager
-import logging
 import asyncio
+import logging
+from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field, model_validator
+
+from app.llm import LLM
+from app.schema import AgentState, Memory, Message
 
 
 class BaseAgent(BaseModel, ABC):
     """Abstract base agent class for managing agent state and execution"""
+
     name: str
     description: Optional[str] = None
 
@@ -30,7 +30,6 @@ class BaseAgent(BaseModel, ABC):
     memory: Memory = Field(default_factory=Memory)
     state: AgentState = AgentState.IDLE
 
-    actions: List[Type["Action"]] = Field(default_factory=list)
     available_tools: Dict[str, callable] = Field(default_factory=dict)
 
     max_steps: int = 10
@@ -46,7 +45,7 @@ class BaseAgent(BaseModel, ABC):
     class Config:
         arbitrary_types_allowed = True
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def initialize_agent(self) -> "BaseAgent":
         """Initialize agent with default settings"""
         if self.llm is None:
@@ -70,12 +69,10 @@ class BaseAgent(BaseModel, ABC):
     @abstractmethod
     async def think(self) -> bool:
         """Process current state and decide next action"""
-        pass
 
     @abstractmethod
     async def act(self) -> str:
         """Execute decided actions"""
-        pass
 
     async def _summarize_memory(self) -> None:
         """Summarize conversation history"""
@@ -85,16 +82,16 @@ class BaseAgent(BaseModel, ABC):
 
             summary_prompt = "Please summarize the key points of this conversation:"
             messages_text = "\n".join(
-                f"{m['role']}: {m['content']}"
-                for m in self.memory.messages
+                f"{m['role']}: {m['content']}" for m in self.memory.messages
             )
 
-            summary = await self.llm.aask(
-                f"{summary_prompt}\n\n{messages_text}"
-            )
+            summary = await self.llm.aask(f"{summary_prompt}\n\n{messages_text}")
 
             self.memory.messages = [
-                {"role": "system", "content": f"Previous conversation summary: {summary}"}
+                {
+                    "role": "system",
+                    "content": f"Previous conversation summary: {summary}",
+                }
             ]
             self.logger.info("Memory summarized successfully")
 
@@ -126,12 +123,18 @@ class BaseAgent(BaseModel, ABC):
 
         self.memory.add_message(msg)
 
+    def reflect(self, result: Any) -> bool:
+        """Evaluate results and determine if task is complete"""
+
+    def plan(self, objective: str) -> List[str]:
+        """Decompose objective into a sequential list of subtasks."""
+
     async def run(
-            self,
-            request: Optional[str] = None,
-            max_steps: Optional[int] = None,
-            raise_on_error: bool = True,
-            reset_before_run: bool = True
+        self,
+        request: Optional[str] = None,
+        max_steps: Optional[int] = None,
+        raise_on_error: bool = True,
+        reset_before_run: bool = True,
     ) -> str:
         """Main execution loop"""
         if reset_before_run:

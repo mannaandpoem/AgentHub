@@ -1,10 +1,10 @@
+from typing import List, Literal, Optional
+
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-from codeact.config import LLMSettings, config
-from typing import Optional, Literal, List
-from openai.types.chat import ChatCompletionMessage
-from tenacity import retry, wait_random_exponential, stop_after_attempt
+from app.config import LLMSettings, config
 
 
 class LLM(BaseModel):
@@ -23,10 +23,7 @@ class LLM(BaseModel):
         if llm_config is None:
             llm_config = config.llm
 
-        client = AsyncOpenAI(
-            api_key=llm_config.api_key,
-            base_url=llm_config.base_url
-        )
+        client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
 
         super().__init__(
             config=llm_config,
@@ -44,7 +41,10 @@ class LLM(BaseModel):
         stop=stop_after_attempt(6),
     )
     async def ask(
-        self, prompt: str, stream: bool = True, system_prompt: str = "You are a helpful assistant."
+        self,
+        prompt: str,
+        stream: bool = True,
+        system_prompt: str = "You are a helpful assistant.",
     ) -> str:
         """
         Send a prompt to the LLM and get the response.
@@ -58,7 +58,10 @@ class LLM(BaseModel):
             str: The generated response.
         """
         # Construct messages
-        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}]
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
 
         if not stream:
             # For non-streaming requests
@@ -100,13 +103,13 @@ class LLM(BaseModel):
         stop=stop_after_attempt(6),
     )
     async def aask_function(
-            self,
-            messages: List[dict],
-            system_msgs: Optional[List[str]] = None,
-            timeout: int = 60,
-            tools: Optional[List[dict]] = None,
-            tool_choice: Literal["none", "auto", "required"] = "auto",
-            **kwargs
+        self,
+        messages: List[dict],
+        system_msgs: Optional[List[str]] = None,
+        timeout: int = 60,
+        tools: Optional[List[dict]] = None,
+        tool_choice: Literal["none", "auto", "required"] = "auto",
+        **kwargs
     ):
         """
         Ask LLM using functions/tools and return the response.
@@ -124,7 +127,9 @@ class LLM(BaseModel):
         """
         # Add system messages if provided
         if system_msgs:
-            messages = [{"role": "system", "content": msg} for msg in system_msgs] + messages
+            messages = [
+                {"role": "system", "content": msg} for msg in system_msgs
+            ] + messages
 
         # Set up the completion request
         response = await self.client.chat.completions.create(
@@ -145,24 +150,24 @@ class LLM(BaseModel):
 async def main():
     llm = LLM()
     tools = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "description": "Get weather of an location, the user shoud supply a location first",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "The city and state, e.g. San Francisco, CA",
-                    }
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get weather of an location, the user shoud supply a location first",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        }
+                    },
+                    "required": ["location"],
                 },
-                "required": ["location"]
             },
-        }
-    },
-]
+        },
+    ]
     response = await llm.aask_function(
         [{"role": "user", "content": "what is the weather today? using tool"}],
         tools=tools,
@@ -170,7 +175,8 @@ async def main():
     )
     print(response)
 
+
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
 
+    asyncio.run(main())

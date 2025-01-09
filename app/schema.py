@@ -1,10 +1,12 @@
 from enum import Enum
-from typing import Optional, List, Literal, Any, Dict, Union
+from typing import Any, List, Literal, Optional, Union
+
 from pydantic import BaseModel, Field
 
 
 class AgentState(str, Enum):
     """Agent execution states"""
+
     IDLE = "IDLE"
     RUNNING = "RUNNING"
     FINISHED = "FINISHED"
@@ -13,6 +15,7 @@ class AgentState(str, Enum):
 
 class ToolCall(BaseModel):
     """Represents a tool/function call in a message"""
+
     id: str
     type: str = "function"
     function: Any
@@ -20,6 +23,7 @@ class ToolCall(BaseModel):
 
 class Message(BaseModel):
     """Represents a chat message in the conversation"""
+
     role: Literal["system", "user", "assistant", "tool"] = Field(...)
     content: Optional[str] = Field(default=None)
     tool_calls: Optional[List[ToolCall]] = Field(default=None)
@@ -43,7 +47,9 @@ class Message(BaseModel):
     def from_dict(cls, data: dict) -> "Message":
         """Create message from dictionary"""
         if "tool_calls" in data:
-            data["tool_calls"] = [ToolCall.from_tool_calls(tool_call) for tool_call in data["tool_calls"]]
+            data["tool_calls"] = [
+                ToolCall.from_tool_calls(tool_call) for tool_call in data["tool_calls"]
+            ]
         return cls(**data)
 
     @classmethod
@@ -64,22 +70,25 @@ class Message(BaseModel):
     @classmethod
     def tool_message(cls, content: str, name, tool_call_id: str) -> "Message":
         """Create a tool message"""
-        return cls(role="tool", content=content,  name=name, tool_call_id=tool_call_id)
+        return cls(role="tool", content=content, name=name, tool_call_id=tool_call_id)
 
     @classmethod
-    def from_tool_calls(cls, tool_calls: List[Any], content: Union[str, List[str]] = "", **kwargs):
+    def from_tool_calls(
+        cls, tool_calls: List[Any], content: Union[str, List[str]] = "", **kwargs
+    ):
         """Create ToolCallsMessage from raw tool calls.
 
         Args:
             tool_calls: Raw tool calls from LLM
             content: Optional message content
         """
-        formatted_calls = [{
-            "id": call.id,
-            "function": call.function.model_dump(),
-            "type": "function"
-        } for call in tool_calls]
-        return cls(role="assistant", content=content, tool_calls=formatted_calls, **kwargs)
+        formatted_calls = [
+            {"id": call.id, "function": call.function.model_dump(), "type": "function"}
+            for call in tool_calls
+        ]
+        return cls(
+            role="assistant", content=content, tool_calls=formatted_calls, **kwargs
+        )
 
 
 class Memory(BaseModel):
@@ -91,7 +100,7 @@ class Memory(BaseModel):
         self.messages.append(message)
         # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages:]
+            self.messages = self.messages[-self.max_messages :]
 
     def clear(self) -> None:
         """Clear all messages"""
