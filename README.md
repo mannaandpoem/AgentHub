@@ -29,7 +29,7 @@ A simple web interface for interacting with AI agents' code generation capabilit
 ## Usage
 Run the application:
 ```bash
-python app.py
+python main.py
 ```
 
 Then simply enter your prompts. Type 'exit' to quit.
