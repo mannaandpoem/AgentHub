@@ -1,8 +1,16 @@
-from app.agent.codeact import CodeActAgent
+from typing import List
+
+from pydantic import Field
+
+from app.agent.toolcall import ToolCallAgent
 from app.prompts.swe import NEXT_STEP_TEMPLATE, SYSTEM_PROMPT
+from app.tool.bash import Bash
+from app.tool.finish import Finish
+from app.tool.str_replace_editor import StrReplaceEditor
+from app.tool.tool import Tool
 
 
-class SWEAgent(CodeActAgent):
+class SWEAgent(ToolCallAgent):
     """An agent that implements the SWEAgent paradigm for executing code and natural conversations."""
 
     name: str = "SWEAgent"
@@ -10,3 +18,20 @@ class SWEAgent(CodeActAgent):
 
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_TEMPLATE
+
+    tools: List[Tool] = [Bash, StrReplaceEditor, Finish]
+
+    max_steps: int = 30
+
+    bash: Bash = Field(default_factory=Bash)
+    working_dir: str = "."
+
+    async def think(self) -> bool:
+        """Process current state and decide next action"""
+        # Update working directory
+        self.working_dir = await self.bash.execute("pwd")
+        self.next_step_prompt = self.next_step_prompt.format(
+            current_dir=self.working_dir
+        )
+
+        return await super().think()

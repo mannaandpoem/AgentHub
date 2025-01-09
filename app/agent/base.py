@@ -1,8 +1,7 @@
 import asyncio
-import logging
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -19,23 +18,12 @@ class BaseAgent(BaseModel, ABC):
     system_prompt: Optional[str] = None
     next_step_prompt: Optional[str] = None
 
-    tools: List[str] = Field(default_factory=list)
-    tool_execution_map: Dict[str, callable] = Field(default_factory=dict)
-    special_tool_commands: List[str] = Field(default_factory=lambda: ["finish"])
-
-    max_react_loop: int = 30
-    commands: List[dict] = Field(default_factory=list)
-
     llm: Optional[Any] = None
     memory: Memory = Field(default_factory=Memory)
     state: AgentState = AgentState.IDLE
 
-    available_tools: Dict[str, callable] = Field(default_factory=dict)
-
     max_steps: int = 10
     current_step: int = 0
-
-    logger: logging.Logger = Field(default_factory=lambda: logging.getLogger(__name__))
 
     # Memory management settings
     max_memory_messages: int = 100

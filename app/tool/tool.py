@@ -11,6 +11,9 @@ class Tool(ABC, BaseModel):
     description: ClassVar[str]
     parameters: ClassVar[Optional[dict]] = None
 
+    class Config:
+        arbitrary_types_allowed = True
+
     @abstractmethod
     async def execute(self, **kwargs):
         """Execute the tool with given parameters."""

@@ -10,13 +10,13 @@ def transform_tool_call_to_command(tool_call):
         tool_call: The tool call object from OpenAI API response
 
     Returns:
-        dict: Standardized command format with command_name and args
+        dict: Standardized command format with command_name and arguments
     """
 
-    args = json.loads(tool_call.function.arguments or "{}")
+    arguments = json.loads(tool_call.function.arguments or "{}")
     tool_name = tool_call.function.name
 
-    return {"command": tool_name, "args": args}
+    return {"command": tool_name, "arguments": arguments}
 
 
 def parse_oh_aci_output(tool_output, return_string=True):
