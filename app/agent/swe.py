@@ -20,6 +20,7 @@ class SWEAgent(ToolCallAgent):
     next_step_prompt: str = NEXT_STEP_TEMPLATE
 
     tools: List[Tool] = [Bash, StrReplaceEditor, Finish]
+    special_tool_commands: List[str] = Field(default_factory=lambda: ["finish"])
 
     max_steps: int = 30
 

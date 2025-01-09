@@ -1,8 +1,10 @@
 from typing import List
 
-from app.agent.codeact import CodeActAgent
+from pydantic import Field
+
+from app.agent.toolcall import ToolCallAgent
 from app.prompts.midwit import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.tool.attempt_completion import AttemptCompletion
+from app.tool.attempt_completion import AttemptCompletionClientRequest
 from app.tool.list_files import ListFiles
 from app.tool.search_file import SearchFile
 from app.tool.str_replace_editor import StrReplaceEditor
@@ -10,7 +12,7 @@ from app.tool.terminal import Terminal
 from app.tool.tool import Tool
 
 
-class MidwitAgent(CodeActAgent):
+class MidwitAgent(ToolCallAgent):
     """An agent that implements the MidwitAgent paradigm for executing code and natural conversations."""
 
     name: str = "MidwitAgent"
@@ -24,7 +26,10 @@ class MidwitAgent(CodeActAgent):
         StrReplaceEditor,
         SearchFile,
         ListFiles,
-        AttemptCompletion,
+        AttemptCompletionClientRequest,
     ]
+    special_tool_commands: List[str] = Field(
+        default_factory=lambda: ["attempt_completion"]
+    )
 
     max_steps: int = 30

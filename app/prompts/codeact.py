@@ -6,4 +6,4 @@ SYSTEM_PROMPT = """You are OpenHands agent, a helpful AI assistant that can inte
 </IMPORTANT>"""
 
 NEXT_STEP_PROMPT = """Your response must include exactly _ONE_ tool/function call.
-If you want to stop, use `finish` tool/function call."""
+If you want to stop interaction, use `finish` tool/function call."""

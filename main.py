@@ -1,10 +1,11 @@
 import asyncio
 
-from app.agent.codeact import CodeActAgent
+from app.agent.midwit import MidwitAgent
 
 
 async def main():
-    agent = CodeActAgent()
+    # agent = CodeActAgent()
+    agent = MidwitAgent()
     while True:
         try:
             prompt = input("\nEnter your prompt (or 'exit' to quit): ")

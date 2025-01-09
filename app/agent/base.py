@@ -6,6 +6,7 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from app.llm import LLM
+from app.logger import logger
 from app.schema import AgentState, Memory, Message
 
 
@@ -49,7 +50,7 @@ class BaseAgent(BaseModel, ABC):
             yield
         except Exception as e:
             self.state = AgentState.ERROR
-            self.logger.error(f"Error in state {new_state}: {str(e)}")
+            logger.error(f"Error in state {new_state}: {str(e)}")
             raise
         finally:
             self.state = previous_state
@@ -81,10 +82,10 @@ class BaseAgent(BaseModel, ABC):
                     "content": f"Previous conversation summary: {summary}",
                 }
             ]
-            self.logger.info("Memory summarized successfully")
+            logger.info("Memory summarized successfully")
 
         except Exception as e:
-            self.logger.error(f"Error summarizing memory: {str(e)}")
+            logger.error(f"Error summarizing memory: {str(e)}")
 
     async def reset(self, clear_memory: bool = True) -> None:
         """Reset agent state"""
@@ -94,7 +95,7 @@ class BaseAgent(BaseModel, ABC):
         if clear_memory:
             self.memory = Memory()
 
-        self.logger.info(f"Agent reset (clear_memory={clear_memory})")
+        logger.info(f"Agent reset (clear_memory={clear_memory})")
 
     def update_memory(self, role: str, content: str, **kwargs) -> None:
         """Update memory with new message"""
@@ -155,7 +156,7 @@ class BaseAgent(BaseModel, ABC):
 
                 except Exception as e:
                     error_msg = f"Error in step {self.current_step}: {str(e)}"
-                    self.logger.error(error_msg)
+                    logger.error(error_msg)
                     self.update_memory("assistant", f"Error: {error_msg}")
 
                     if raise_on_error:

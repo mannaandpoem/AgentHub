@@ -17,7 +17,7 @@ class ToolCallAgent(BaseAgent):
 
     tools: List[Tool] = Field(default_factory=list)
     tool_execution_map: Dict[str, callable] = Field(default_factory=dict)
-    special_tool_commands: List[str] = Field(default_factory=lambda: ["finish"])
+    special_tool_commands: List[str] = Field(default_factory=list)
     commands: List[dict] = Field(default_factory=list)
 
     max_steps: int = 30
