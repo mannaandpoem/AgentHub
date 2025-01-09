@@ -3,7 +3,7 @@ from typing import List
 from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
-from app.prompts.codeact import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.prompt.codeact import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool.bash import Bash
 from app.tool.finish import Finish
 from app.tool.str_replace_editor import StrReplaceEditor

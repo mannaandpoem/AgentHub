@@ -3,7 +3,7 @@ from typing import List
 from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
-from app.prompts.midwit import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.prompt.midwit import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool.attempt_completion import AttemptCompletionClientRequest
 from app.tool.list_files import ListFiles
 from app.tool.search_file import SearchFile
