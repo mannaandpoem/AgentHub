@@ -1,4 +1,5 @@
 import inspect
+import traceback
 from typing import Dict, List
 
 from openai.types.chat import ChatCompletionToolParam
@@ -38,8 +39,7 @@ class CodeActAgent(BaseAgent):
     def set_tool_execution_map(self) -> "CodeActAgent":
         """Update available tools and their execution methods"""
         for tool_cls in self.tools:
-            tool_ins = tool_cls()
-            self.tool_execution_map[tool_cls.name] = tool_ins.execute
+            self.tool_execution_map[tool_cls.name] = tool_cls().execute
         return self
 
     async def think(self) -> bool:
@@ -94,28 +94,54 @@ class CodeActAgent(BaseAgent):
         return "\n\n".join(outputs)
 
     async def _run_command(self, cmd: dict) -> str:
-        """Execute a single command"""
-        cmd_name = cmd["command"]
-        output = "Observation:\n"
+        """
+        Execute a single command and return a clear, tagged output.
 
-        # Execute command
-        if cmd_name in self.tool_execution_map:
-            tool_obj = self.tool_execution_map[cmd_name]
+        Args:
+            cmd dict: A dictionary containing the command details.
+
+        Returns:
+            str: Tagged output with observations or errors.
+        """
+        cmd_name = cmd.get("command")
+        args = cmd.get("args", {})
+
+        if not cmd_name:
+            return "Error:\nNo command specified."
+
+        if cmd_name not in self.tool_execution_map:
+            return f"Error:\nCommand '{cmd_name}' not found."
+
+        tool_obj = self.tool_execution_map[cmd_name]
+
+        try:
+            # Execute the command, handling both sync and async functions
             if inspect.iscoroutinefunction(tool_obj):
-                result = await tool_obj(**cmd["args"])
+                result = await tool_obj(**args)
             else:
-                result = tool_obj(**cmd["args"])
+                result = tool_obj(**args)
+
+            # Prepare the observation output
+            observation = f"Observed result of command `{cmd_name}` executed by user:\n"
 
             if result:
-                output += str(result)
+                observation += str(result)
+            else:
+                observation += (
+                    "The command ran successfully and did not produce any output."
+                )
 
-            # Check special command to update state
+            # Check if the command affects the agent's state
             if self._is_special_command(cmd):
                 self.state = AgentState.FINISHED
 
-            return output
+            return observation
 
-        return f"Command {cmd_name} not found."
+        except Exception:
+            # Capture and return the full traceback for debugging
+            error_output = "Error:\n"
+            error_output += traceback.format_exc()
+            return error_output
 
     def _is_special_command(self, cmd) -> bool:
         return cmd["command"] in self.special_tool_commands

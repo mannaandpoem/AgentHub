@@ -12,4 +12,4 @@ class Finish(Tool):
 
     def execute(self) -> str:
         """Finish the current execution"""
-        return "Finish"
+        return "The interaction has been successfully completed."
