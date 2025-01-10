@@ -4,10 +4,7 @@ from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
 from app.prompt.swe import NEXT_STEP_TEMPLATE, SYSTEM_PROMPT
-from app.tool.bash import Bash
-from app.tool.finish import Finish
-from app.tool.str_replace_editor import StrReplaceEditor
-from app.tool.tool import Tool
+from app.tool import Bash, Finish, StrReplaceEditor, Tool
 
 
 class SWEAgent(ToolCallAgent):
@@ -20,7 +17,7 @@ class SWEAgent(ToolCallAgent):
     next_step_prompt: str = NEXT_STEP_TEMPLATE
 
     tools: List[Tool] = [Bash, StrReplaceEditor, Finish]
-    special_tool_commands: List[str] = Field(default_factory=lambda: ["finish"])
+    special_tool_commands: List[str] = Field(default_factory=lambda: [Finish.name])
 
     max_steps: int = 30
 

@@ -4,12 +4,14 @@ from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
 from app.prompt.midwit import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.tool.attempt_completion import AttemptCompletionClientRequest
-from app.tool.list_files import ListFiles
-from app.tool.search_file import SearchFile
-from app.tool.str_replace_editor import StrReplaceEditor
-from app.tool.terminal import Terminal
-from app.tool.tool import Tool
+from app.tool import (
+    AttemptCompletionClientRequest,
+    ListFiles,
+    SearchFile,
+    StrReplaceEditor,
+    Terminal,
+    Tool,
+)
 
 
 class MidwitAgent(ToolCallAgent):
@@ -29,7 +31,7 @@ class MidwitAgent(ToolCallAgent):
         AttemptCompletionClientRequest,
     ]
     special_tool_commands: List[str] = Field(
-        default_factory=lambda: ["attempt_completion"]
+        default_factory=lambda: [AttemptCompletionClientRequest.name]
     )
 
     max_steps: int = 30

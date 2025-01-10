@@ -9,7 +9,18 @@ _FINISH_DESCRIPTION = """Finish the interaction when the task is complete OR if 
 class Finish(Tool):
     name: ClassVar[str] = "finish"
     description: ClassVar[str] = _FINISH_DESCRIPTION
+    parameters: ClassVar[dict] = {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "description": "The status of the interaction.",
+                "enum": ["success", "failure"],
+            }
+        },
+        "required": ["status"],
+    }
 
-    def execute(self) -> str:
+    def execute(self, status: str) -> str:
         """Finish the current execution"""
-        return "The interaction has been successfully completed."
+        return f"The interaction has been completed with status: {status}"

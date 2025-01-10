@@ -102,7 +102,7 @@ class LLM(BaseModel):
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
     )
-    async def aask_function(
+    async def ask_tool(
         self,
         messages: List[dict],
         system_msgs: Optional[List[str]] = None,
@@ -168,7 +168,7 @@ async def main():
             },
         },
     ]
-    response = await llm.aask_function(
+    response = await llm.ask_tool(
         [{"role": "user", "content": "what is the weather today? using tool"}],
         tools=tools,
         tool_choice="auto",

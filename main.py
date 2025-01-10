@@ -6,7 +6,6 @@ from app.logger import logger
 
 async def main():
     agent = ToolCallAgent()
-    # agent = CodeActAgent()
     while True:
         try:
             prompt = input("\nEnter your prompt (or 'exit' to quit): ")
