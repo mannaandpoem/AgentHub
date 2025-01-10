@@ -1,4 +1,3 @@
-import asyncio
 from typing import ClassVar, Literal, Optional
 
 from pydantic import BaseModel
@@ -15,6 +14,9 @@ class TerminalOutput(BaseModel):
 
     def to_string(self) -> str:
         return self.output if self.status == "completed" else f"Error: {self.error}"
+
+    def __str__(self):
+        return self.to_string()
 
 
 class Terminal(Tool):
@@ -58,7 +60,7 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
         except Exception as e:
             output = TerminalOutput(output="", status="failed", error=str(e))
 
-        return output.to_string()
+        return output
 
     @staticmethod
     def _sanitize_command(command: str) -> str:
