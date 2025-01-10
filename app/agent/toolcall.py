@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import json
 import traceback
 from typing import Dict, List, Literal, Optional
 
@@ -11,7 +12,6 @@ from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message
 from app.tool import Bash, Finish, Tool
-from app.utils import transform_tool_call_to_command
 
 
 class ToolCallAgent(BaseAgent):
@@ -195,9 +195,8 @@ class ToolCallAgent(BaseAgent):
 
     async def _execute_tool_call(self, command: dict) -> str:
         """Execute a single tool call and return formatted result"""
-        cmd = transform_tool_call_to_command(command)
-        cmd_name = cmd.get("command")
-        args = cmd.get("arguments", {})
+        args = json.loads(command.function.arguments)
+        cmd_name = command.function.name
 
         if not cmd_name:
             return "Error:\nNo command specified."
@@ -215,7 +214,7 @@ class ToolCallAgent(BaseAgent):
 
             observation = f"Observed result of {cmd_name}:\n{str(result) if result else 'Command completed successfully with no output.'}"
 
-            if self._is_special_command(cmd):
+            if self._is_special_command(cmd_name=cmd_name):
                 self.state = AgentState.FINISHED
 
             return observation
@@ -223,9 +222,9 @@ class ToolCallAgent(BaseAgent):
         except Exception:
             return f"Error:\n{traceback.format_exc()}"
 
-    def _is_special_command(self, cmd: dict) -> bool:
+    def _is_special_command(self, cmd_name: str) -> bool:
         """Check if command is a special command that affects agent state"""
-        return cmd["command"] in self.special_tool_commands
+        return cmd_name in self.special_tool_commands
 
     def get_tool_params(self) -> List[ChatCompletionToolParam]:
         """Get tool parameters for LLM function calling"""

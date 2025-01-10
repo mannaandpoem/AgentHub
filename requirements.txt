@@ -3,6 +3,6 @@ openai~=1.58.1
 tenacity~=9.0.0
 pyyaml~=6.0.2
 loguru~=0.7.3
-openhands-aci>=0.1.6
+#openhands-aci
 numpy~=2.2.1
 datasets~=3.2.0

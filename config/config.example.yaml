@@ -1,14 +1,6 @@
 llm:
-  model: "gpt-4o-mini"  # or gpt-4o
-  base_url: "https://api.openai.com/v1"  # or forward url / other llm url
+  model: "deepseek-chat"  # or gpt-4o / other llm model
+  base_url: "https://api.deepseek.com/v1"  # or forward url / other llm url
   api_key: "sk-..."  # your api key
   max_tokens: 4096  # max tokens for each request
   temperature: 1.0  # temperature for sampling
-
-novel:
-  volume_count: 1  # number of volumes to use
-  chapter_count_per_volume: 3  # number of chapters per volume
-  section_word_count: 2000  # word count for each section
-  sliding_window_size: 5 # sliding window size for chapter outline, detailed outline and chapter generation
-  need_optimize: false  # whether to optimize the chapter content
-  workspace: "workspace"  # novel storage directory
