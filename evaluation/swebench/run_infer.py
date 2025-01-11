@@ -11,7 +11,6 @@ from typing import Dict, List
 from app.agent.codeact import CodeActAgent
 from app.agent.midwit import MidwitAgent
 from app.agent.swe import SWEAgent
-from app.agent.toolcall import ToolCallAgent
 from app.config import PROJECT_ROOT, WORKSPACE_ROOT, config
 from app.logger import logger
 from app.tool import Terminal
@@ -263,7 +262,13 @@ class BenchmarkRunner:
             await agent.run(user_requirement)
             logger.info(f"**** Finished running {instance['instance_id']} ****")
 
-            await self._save_predictions(agent, instance)
+            instance["model_name_or_path"] = agent.llm.model
+
+            repo_path = self.repo_manager.get_repo_path(instance)
+            instance["model_patch"] = await self.generate_patch(repo_path)
+            logger.info(f"Model patch:\n{instance['model_patch']}")
+
+            await self._save_predictions(instance)
         except Exception as e:
             logger.warning(f"**** Exception in {instance['instance_id']}: {e} ****")
 
@@ -290,15 +295,13 @@ class BenchmarkRunner:
             else SOLUTION_STEPS_WITHOUT_REPRODUCE,
         )
 
-    async def _save_predictions(self, agent: ToolCallAgent, instance: dict):
+    async def generate_patch(self, repo_path: Path) -> str:
+        """Generate git diff patch for the repository"""
+        return await self.repo_manager.get_git_diff(repo_path)
+
+    async def _save_predictions(self, instance: dict):
         """Save predictions to output file"""
         output_file = self.result_dir / "all_preds.jsonl"
-        instance["model_name_or_path"] = agent.llm.model
-        instance["model_patch"] = await self.repo_manager.get_git_diff(
-            self.repo_manager.get_repo_path(instance)
-        )
-
-        logger.info(f"Model patch:\n{instance['model_patch']}")
         logger.info(f"Saving predictions to {output_file}")
 
         with open(output_file, "a+") as fp:
