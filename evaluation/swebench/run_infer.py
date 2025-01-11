@@ -179,15 +179,18 @@ class BenchmarkRunner:
         dataset_path = DatasetConfig.get_dataset_path()
         dataset = self._load_hf_dataset(dataset_path)
 
-        # instance_ids = os.getenv("INSTANCEIDS")
-        instance_ids = ["django__django-13820"]
-        # instance_ids = ["astropy__astropy-14309"]
+        # Get instance IDs from args or fallback to default
+        instance_ids = self.args.instance_ids
+        if instance_ids is None:
+            # Default hardcoded or environment variable
+            instance_ids = ["django__django-13820"]
+        elif instance_ids == ["all"]:
+            # Select all instances
+            logger.info("Using all available instances")
+            return dataset
 
-        print(f"len(instance_ids): {len(instance_ids)}")
-        if not instance_ids:
-            logger.warning("INSTANCEIDS is not set")
-            return None
-
+        # Filter dataset by instance IDs
+        logger.info(f"Filtering dataset for instance IDs: {instance_ids}")
         return self._filter_dataset(dataset, instance_ids)
 
     @staticmethod
@@ -357,6 +360,11 @@ def parse_args() -> argparse.Namespace:
         default=30,
         type=int,
         help="Maximum number of steps to run the agent",
+    )
+    parser.add_argument(
+        "--instance_ids",
+        nargs="+",
+        help="Specify one or more instance IDs (e.g., 'django__django-13820'). Use 'all' to select all instances.",
     )
 
     return parser.parse_args()
