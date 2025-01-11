@@ -1,37 +1,32 @@
-import os
 import threading
+from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, Field
 
 
-def get_project_root() -> str:
-    """获取项目根目录"""
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def get_project_root() -> Path:
+    """Get the project root directory"""
+    return Path(__file__).resolve().parent.parent
 
 
-CODEACT_ROOT = get_project_root()
+PROJECT_ROOT = get_project_root()
+WORKSPACE_ROOT = PROJECT_ROOT / "workspace"
 
 
 class LLMSettings(BaseModel):
-    """LLM相关配置"""
-
-    model: str = Field(..., description="模型名称")
-    base_url: str = Field(..., description="API基础URL")
-    api_key: str = Field(..., description="API密钥")
-    max_tokens: int = Field(4096, description="每个请求的最大token数")
-    temperature: float = Field(1.0, description="采样温度")
+    model: str = Field(..., description="Model name")
+    base_url: str = Field(..., description="API base URL")
+    api_key: str = Field(..., description="API key")
+    max_tokens: int = Field(4096, description="Maximum number of tokens per request")
+    temperature: float = Field(1.0, description="Sampling temperature")
 
 
 class AppConfig(BaseModel):
-    """应用总配置"""
-
     llm: LLMSettings
 
 
 class Config:
-    """单例配置类"""
-
     _instance = None
     _lock = threading.Lock()
     _initialized = False
@@ -52,24 +47,23 @@ class Config:
                     self._initialized = True
 
     @staticmethod
-    def _get_config_path() -> str:
-        """获取配置文件路径"""
-        root = CODEACT_ROOT
-        config_path = os.path.join(root, "config", "config.yaml")
-        if not os.path.exists(config_path):
-            config_path = os.path.join(root, "config", "config.example.yaml")
-        if not os.path.exists(config_path):
-            raise FileNotFoundError("未找到配置文件 config.yaml 或 config.example.yaml")
+    def _get_config_path() -> Path:
+        root = PROJECT_ROOT
+        config_path = root / "config" / "config.yaml"
+        if not config_path.exists():
+            config_path = root / "config" / "config.example.yaml"
+        if not config_path.exists():
+            raise FileNotFoundError(
+                "Configuration file config.yaml or config.example.yaml not found"
+            )
         return config_path
 
     def _load_config(self) -> dict:
-        """加载配置文件"""
         config_path = self._get_config_path()
-        with open(config_path, "r", encoding="utf-8") as f:
+        with config_path.open("r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     def _load_initial_config(self):
-        """初始化配置"""
         raw_config = self._load_config()
 
         config_dict = {
@@ -86,9 +80,7 @@ class Config:
 
     @property
     def llm(self) -> LLMSettings:
-        """获取LLM配置"""
         return self._config.llm
 
 
-# 实例化配置对象
 config = Config()

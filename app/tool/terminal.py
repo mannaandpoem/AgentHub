@@ -1,3 +1,6 @@
+import asyncio
+import os
+import shlex
 from typing import ClassVar, Literal, Optional
 
 from pydantic import BaseModel
@@ -40,46 +43,134 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
         },
         "required": ["command"],
     }
+    process: Optional[asyncio.subprocess.Process] = None
+    current_path: str = os.getcwd()
+    lock: asyncio.Lock = asyncio.Lock()
 
     async def execute(self, command: str) -> str:
-        """Execute a terminal command asynchronously."""
-        sanitized_command = self._sanitize_command(command)
-        try:
-            process = await asyncio.create_subprocess_shell(
-                sanitized_command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await process.communicate()
-            status = "completed" if process.returncode == 0 else "failed"
-            output = TerminalOutput(
-                output=stdout.decode().strip(),
-                status=status,
-                error=stderr.decode().strip(),
-            )
-        except Exception as e:
-            output = TerminalOutput(output="", status="failed", error=str(e))
+        """
+        Execute a terminal command asynchronously with persistent context.
 
-        return output
+        Args:
+            command (str): The terminal command to execute.
+
+        Returns:
+            str: The output, status, and error of the command execution.
+        """
+        sanitized_command = self._sanitize_command(command)
+
+        # Handle 'cd' command internally
+        if sanitized_command.startswith("cd "):
+            return await self._handle_cd_command(sanitized_command)
+
+        async with self.lock:
+            try:
+                self.process = await asyncio.create_subprocess_shell(
+                    sanitized_command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=self.current_path,
+                )
+                stdout, stderr = await self.process.communicate()
+                status = "completed" if self.process.returncode == 0 else "failed"
+                output = TerminalOutput(
+                    output=stdout.decode().strip(),
+                    status=status,
+                    error=stderr.decode().strip(),
+                )
+            except Exception as e:
+                output = TerminalOutput(output="", status="failed", error=str(e))
+            finally:
+                self.process = None
+
+        return output.to_string()
+
+    async def execute_in_env(self, env_name: str, command: str) -> str:
+        """
+        Execute a terminal command asynchronously within a specified Conda environment.
+
+        Args:
+            env_name (str): The name of the Conda environment.
+            command (str): The terminal command to execute within the environment.
+
+        Returns:
+            str: The output, status, and error of the command execution.
+        """
+        sanitized_command = self._sanitize_command(command)
+
+        # Construct the command to run within the Conda environment
+        # Using 'conda run -n env_name command' to execute without activating
+        conda_command = f"conda run -n {shlex.quote(env_name)} {sanitized_command}"
+
+        return await self.execute(conda_command)
+
+    async def _handle_cd_command(self, command: str) -> TerminalOutput:
+        """
+        Handle 'cd' commands to change the current path.
+
+        Args:
+            command (str): The 'cd' command to process.
+
+        Returns:
+            TerminalOutput: The result of the 'cd' command.
+        """
+        parts = shlex.split(command)
+        if len(parts) < 2:
+            new_path = os.path.expanduser("~")
+        else:
+            new_path = os.path.expanduser(parts[1])
+
+        new_path = os.path.abspath(new_path)
+
+        if os.path.isdir(new_path):
+            self.current_path = new_path
+            return TerminalOutput(
+                output=f"Changed directory to {self.current_path}",
+                status="completed",
+                error="",
+            )
+        else:
+            return TerminalOutput(
+                output="", status="failed", error=f"No such directory: {new_path}"
+            )
 
     @staticmethod
     def _sanitize_command(command: str) -> str:
-        """Sanitize the command for safe execution."""
-        if "reproduce_error.py" in command and "python" in command:
-            return "python reproduce_error.py"
+        """
+        Sanitize the command for safe execution.
+
+        Args:
+            command (str): The command to sanitize.
+
+        Returns:
+            str: The sanitized command.
+        """
+        # Example sanitization: restrict certain dangerous commands
+        dangerous_commands = ["rm", "sudo", "shutdown", "reboot"]
+        parts = shlex.split(command)
+        if any(cmd in dangerous_commands for cmd in parts):
+            raise ValueError("Use of dangerous commands is restricted.")
+
+        # Additional sanitization logic can be added here
         return command
 
+    async def close(self):
+        """Close the persistent shell process if it exists."""
+        async with self.lock:
+            if self.process:
+                self.process.terminate()
+                try:
+                    await asyncio.wait_for(self.process.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    self.process.kill()
+                    await self.process.wait()
+                finally:
+                    self.process = None
 
-# Example usage
-async def example_usage():
-    terminal = Terminal()
+    async def __aenter__(self):
+        """Enter the asynchronous context manager."""
+        return self
 
-    # Example: Simple command execution
-    result = await terminal.execute("ls -la")
-    print(f"Command output: {result}")
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(example_usage())
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit the asynchronous context manager and close the process."""
+        await self.close()

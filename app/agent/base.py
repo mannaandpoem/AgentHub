@@ -33,6 +33,7 @@ class BaseAgent(BaseModel, ABC):
 
     class Config:
         arbitrary_types_allowed = True
+        extra = "allow"
 
     @model_validator(mode="after")
     def initialize_agent(self) -> "BaseAgent":
