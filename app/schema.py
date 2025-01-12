@@ -13,12 +13,17 @@ class AgentState(str, Enum):
     ERROR = "ERROR"
 
 
+class Function(BaseModel):
+    name: str
+    arguments: str
+
+
 class ToolCall(BaseModel):
     """Represents a tool/function call in a message"""
 
     id: str
     type: str = "function"
-    function: Any
+    function: Function
 
 
 class Message(BaseModel):
@@ -42,15 +47,6 @@ class Message(BaseModel):
         if self.tool_call_id is not None:
             message["tool_call_id"] = self.tool_call_id
         return message
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Message":
-        """Create message from dictionary"""
-        if "tool_calls" in data:
-            data["tool_calls"] = [
-                ToolCall.from_tool_calls(tool_call) for tool_call in data["tool_calls"]
-            ]
-        return cls(**data)
 
     @classmethod
     def user_message(cls, content: str) -> "Message":

@@ -1,15 +1,13 @@
-from typing import ClassVar
-
-from app.tool.tool import Tool
+from app.tool.base import BaseTool
 
 
 _ATTEMPT_COMPLETION_DESCRIPTION = "Use this when you have resolved the Github Issue and solved it completely or you have enough evidence to suggest that the Github Issue has been resolved after your changes."
 
 
-class AttemptCompletionClientRequest(Tool):
-    name: ClassVar[str] = "attempt_completion"
-    description: ClassVar[str] = _ATTEMPT_COMPLETION_DESCRIPTION
-    parameters: ClassVar[dict] = {
+class AttemptCompletionClientRequest(BaseTool):
+    name: str = "attempt_completion"
+    description: str = _ATTEMPT_COMPLETION_DESCRIPTION
+    parameters: dict = {
         "type": "object",
         "properties": {
             "result": {

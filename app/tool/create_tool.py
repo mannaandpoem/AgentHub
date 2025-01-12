@@ -1,17 +1,15 @@
-from typing import Any, Callable, ClassVar, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
-from app.tool.tool import Tool
+from app.tool.base import BaseTool
 
 
-class CreateTool(Tool):
-    name: ClassVar[str] = "create_tool"
-    description: ClassVar[
-        str
-    ] = """
+class CreateTool(BaseTool):
+    name: str = "create_tool"
+    description: str = """
     Creates a new tool or function with specified parameters.
     This tool allows dynamic creation of new tools with custom name, description, parameters, and execution logic.
     """
-    parameters: ClassVar[dict] = {
+    parameters: dict = {
         "type": "object",
         "properties": {
             "tool_name": {
@@ -39,8 +37,7 @@ class CreateTool(Tool):
         ],
     }
 
-    # 使用类变量存储创建的工具
-    _created_tools: ClassVar[Dict[str, Any]] = {}
+    _created_tools: Dict[str, Any] = {}
 
     async def execute(
         self,
@@ -63,7 +60,7 @@ class CreateTool(Tool):
             # Create the tool class dynamically
             tool_class = type(
                 tool_name,
-                (Tool,),
+                (BaseTool,),
                 {
                     "name": tool_name,
                     "description": tool_description,
@@ -81,7 +78,7 @@ class CreateTool(Tool):
             return f"Failed to create tool: {str(e)}"
 
     @classmethod
-    def get_created_tool(cls, tool_name: str) -> Optional[Tool]:
+    def get_created_tool(cls, tool_name: str) -> Optional[BaseTool]:
         """
         Retrieves a previously created tool by name.
         """

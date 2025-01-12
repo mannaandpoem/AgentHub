@@ -1,8 +1,6 @@
-from typing import ClassVar
-
 from openhands_aci import file_editor
 
-from app.tool.tool import Tool
+from app.tool.base import BaseTool
 from app.utils import parse_oh_aci_output
 
 
@@ -20,12 +18,12 @@ Notes for using the `str_replace` command:
 """
 
 
-class StrReplaceEditor(Tool):
+class StrReplaceEditor(BaseTool):
     """A tool for executing bash commands"""
 
-    name: ClassVar[str] = "str_replace_editor"
-    description: ClassVar[str] = _STR_REPLACE_EDITOR_DESCRIPTION
-    parameters: ClassVar[dict] = {
+    name: str = "str_replace_editor"
+    description: str = _STR_REPLACE_EDITOR_DESCRIPTION
+    parameters: dict = {
         "type": "object",
         "properties": {
             "command": {
@@ -62,7 +60,7 @@ class StrReplaceEditor(Tool):
         "required": ["command", "path"],
     }
 
-    def execute(self, should_parse_output=True, **kwargs) -> str:
+    async def execute(self, should_parse_output=True, **kwargs) -> str:
         result = file_editor(**kwargs)
         if should_parse_output:
             result = parse_oh_aci_output(result)

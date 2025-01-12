@@ -1,16 +1,16 @@
 import os
-from typing import ClassVar, Optional
+from typing import Optional
 
-from app.tool.tool import Tool
+from app.tool.base import BaseTool
 
 
-class FileNavigator(Tool):
-    name: ClassVar[str] = "file_navigator"
-    description: ClassVar[str] = (
+class FileNavigator(BaseTool):
+    name: str = "file_navigator"
+    description: str = (
         "Provides various file manipulation capabilities such as opening files, navigating to specific lines, "
         "scrolling, and searching within files and directories."
     )
-    parameters: ClassVar[dict] = {
+    parameters: dict = {
         "type": "object",
         "properties": {
             "command": {
@@ -55,7 +55,7 @@ class FileNavigator(Tool):
     current_line: int = 1
     window: int = 100
 
-    def execute(self, **kwargs):
+    async def execute(self, **kwargs):
         command = kwargs.get("command")
         if not command:
             return {"error": "No command specified."}

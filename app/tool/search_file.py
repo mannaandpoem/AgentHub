@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar, List, Optional
+from typing import List, Optional
 
-from app.tool.tool import Tool
+from app.tool.base import BaseTool
 
 
 @dataclass
@@ -53,15 +53,13 @@ class SearchResult:
         return "\n".join(output).rstrip()
 
 
-class SearchFile(Tool):
-    name: ClassVar[str] = "search_files"
-    description: ClassVar[
-        str
-    ] = """
+class SearchFile(BaseTool):
+    name: str = "search_files"
+    description: str = """
     Request to perform a regex search across files in a specified directory, providing context-rich results.
     This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
     """
-    parameters: ClassVar[dict] = {
+    parameters: dict = {
         "type": "object",
         "properties": {
             "directory_path": {

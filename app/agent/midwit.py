@@ -10,7 +10,7 @@ from app.tool import (
     SearchFile,
     StrReplaceEditor,
     Terminal,
-    Tool,
+    ToolCollection,
 )
 
 
@@ -23,15 +23,15 @@ class MidwitAgent(ToolCallAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    tools: List[Tool] = [
-        Terminal,
-        StrReplaceEditor,
-        SearchFile,
-        ListFiles,
-        AttemptCompletionClientRequest,
-    ]
-    special_tool_commands: List[str] = Field(
-        default_factory=lambda: [AttemptCompletionClientRequest.name]
+    tool_collection: ToolCollection = ToolCollection(
+        Terminal(),
+        StrReplaceEditor(),
+        SearchFile(),
+        ListFiles(),
+        AttemptCompletionClientRequest(),
+    )
+    special_tools: List[str] = Field(
+        default_factory=lambda: [AttemptCompletionClientRequest.get_name().lower()]
     )
 
     max_steps: int = 30
