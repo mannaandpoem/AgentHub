@@ -8,14 +8,14 @@ async def main():
     agent = ToolCallAgent()
     while True:
         try:
-            prompt = input("\nEnter your prompt (or 'exit' to quit): ")
+            prompt = input("Enter your prompt (or 'exit' to quit): ")
             if prompt.lower() == "exit":
                 logger.info("Goodbye!")
                 break
-            logger.warning("\nProcessing your request...\n")
+            logger.warning("Processing your request...")
             await agent.run(prompt)
         except KeyboardInterrupt:
-            logger.warning("\nGoodbye!")
+            logger.warning("Goodbye!")
             break
 
 

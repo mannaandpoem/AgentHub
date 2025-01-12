@@ -1,11 +1,11 @@
 import asyncio
 import json
-import traceback
 from typing import List, Literal, Optional
 
 from pydantic import Field
 
 from app.agent.base import BaseAgent
+from app.exceptions import ToolError
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
@@ -66,17 +66,14 @@ class ToolCallAgent(BaseAgent):
         results = []
         async with self.state_context(AgentState.RUNNING):
             while self.current_step < self.max_steps:
-                self.current_step += 1
-
                 try:
+                    self.current_step += 1
+
                     # Think phase
                     should_act = await self.think()
                     if not should_act:
                         if self.tool_choices == "required":
-                            error_msg = "Error: Tool calls required but none provided"
-                            self.update_memory("assistant", error_msg)
-                            results.append(error_msg)
-                            break
+                            raise ValueError("Tool calls required but none provided")
                         results.append("Thinking complete - no action needed")
                         break
 
@@ -86,8 +83,7 @@ class ToolCallAgent(BaseAgent):
 
                     # Act phase
                     result = await self.act()
-                    step_result = f"Step {self.current_step}: {result}"
-                    results.append(step_result)
+                    results.append(f"Step {self.current_step}: {result}")
 
                     if self.state == AgentState.FINISHED:
                         break
@@ -95,19 +91,12 @@ class ToolCallAgent(BaseAgent):
                 except Exception as e:
                     error_msg = f"Error in step {self.current_step}: {str(e)}"
                     logger.error(error_msg)
-                    error_message = Message.assistant_message(f"Error: {error_msg}")
-                    self.memory.add_message(error_message)
                     results.append(error_msg)
                     break
 
                 await asyncio.sleep(0)
 
-            if self.current_step >= self.max_steps:
-                max_steps_msg = f"Reached maximum steps limit ({self.max_steps})"
-                self.memory.add_message(Message.assistant_message(max_steps_msg))
-                results.append(max_steps_msg)
-
-        return "\n".join(results)
+            return "\n".join(results)
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
@@ -183,16 +172,15 @@ class ToolCallAgent(BaseAgent):
 
     async def _execute_tool_call(self, command: ToolCall) -> str:
         """Execute a single tool call and return formatted result"""
-        args = json.loads(command.function.arguments)
-        cmd_name = command.function.name
-
-        if not cmd_name:
-            return "Error:\nNo command specified."
-
-        if cmd_name not in self.tool_collection.tool_map:
-            return f"Error:\nCommand '{cmd_name}' not found."
-
         try:
+            if not command.function.name:
+                raise ValueError("No command specified")
+
+            cmd_name = command.function.name
+            if cmd_name not in self.tool_collection.tool_map:
+                raise ValueError(f"Command '{cmd_name}' not found")
+
+            args = json.loads(command.function.arguments)
             result = await self.tool_collection.execute(name=cmd_name, tool_input=args)
 
             observation = f"Observed result of {cmd_name}:\n{str(result) if result else 'Command completed successfully with no output.'}"
@@ -202,8 +190,10 @@ class ToolCallAgent(BaseAgent):
 
             return observation
 
-        except Exception:
-            return f"Error:\n{traceback.format_exc()}"
+        except json.JSONDecodeError:
+            raise ToolError("Invalid tool arguments format")
+        except Exception as e:
+            raise ToolError(f"Tool execution failed: {str(e)}")
 
     def _is_special_tool(self, name: str) -> bool:
         """Check if command is a special tool that affects agent state"""
