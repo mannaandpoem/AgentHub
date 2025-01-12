@@ -1,17 +1,15 @@
 import asyncio
-import inspect
 import json
 import traceback
-from typing import Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
-from openai.types.chat import ChatCompletionToolParam
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from app.agent.base import BaseAgent
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.schema import AgentState, Message
-from app.tool import Bash, Finish, Tool
+from app.schema import AgentState, Message, ToolCall
+from app.tool import Bash, Finish, ToolCollection
 
 
 class ToolCallAgent(BaseAgent):
@@ -23,28 +21,18 @@ class ToolCallAgent(BaseAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    tools: List[Tool] = Field(default_factory=lambda: [Bash, Finish])
+    tool_collection: ToolCollection = ToolCollection(Bash(), Finish())
     tool_choices: Literal["none", "auto", "required"] = "auto"
-    tool_execution_map: Dict[str, callable] = Field(default_factory=dict)
-    special_tool_commands: List[str] = Field(default_factory=lambda: [Finish.name])
-    commands: List[dict] = Field(default_factory=list)
+    special_tools: List[str] = Field(
+        default_factory=lambda: [Finish.get_name().lower()]
+    )
+    commands: List[ToolCall] = Field(default_factory=list)
 
     max_steps: int = 30
 
     duplicate_threshold: int = (
         2  # Number of allowed identical responses before considering stuck
     )
-
-    @model_validator(mode="after")
-    def initialize_tool_execution_map(self) -> "ToolCallAgent":
-        """Initialize tool execution map from provided tools"""
-        for tool in self.tools:
-            if isinstance(tool, type):
-                tool_instance = tool()
-                self.tool_execution_map[tool.name] = tool_instance.execute
-            else:
-                self.tool_execution_map[tool.name] = tool.execute
-        return self
 
     def is_stuck(self) -> bool:
         """Check if the agent is stuck in a loop by detecting duplicate content"""
@@ -131,7 +119,7 @@ class ToolCallAgent(BaseAgent):
         response = await self.llm.ask_tool(
             messages=messages,
             system_msgs=[self.system_prompt] if self.system_prompt else None,
-            tools=self.get_tool_params(),
+            tools=self.tool_collection.to_params(),
             tool_choice=self.tool_choices,
         )
 
@@ -193,7 +181,7 @@ class ToolCallAgent(BaseAgent):
 
         return "\n\n".join(results)
 
-    async def _execute_tool_call(self, command: dict) -> str:
+    async def _execute_tool_call(self, command: ToolCall) -> str:
         """Execute a single tool call and return formatted result"""
         args = json.loads(command.function.arguments)
         cmd_name = command.function.name
@@ -201,20 +189,15 @@ class ToolCallAgent(BaseAgent):
         if not cmd_name:
             return "Error:\nNo command specified."
 
-        if cmd_name not in self.tool_execution_map:
+        if cmd_name not in self.tool_collection.tool_map:
             return f"Error:\nCommand '{cmd_name}' not found."
 
-        tool_executor = self.tool_execution_map[cmd_name]
-
         try:
-            if inspect.iscoroutinefunction(tool_executor):
-                result = await tool_executor(**args)
-            else:
-                result = tool_executor(**args)
+            result = await self.tool_collection.execute(name=cmd_name, tool_input=args)
 
             observation = f"Observed result of {cmd_name}:\n{str(result) if result else 'Command completed successfully with no output.'}"
 
-            if self._is_special_command(cmd_name=cmd_name):
+            if self._is_special_tool(name=cmd_name):
                 self.state = AgentState.FINISHED
 
             return observation
@@ -222,10 +205,6 @@ class ToolCallAgent(BaseAgent):
         except Exception:
             return f"Error:\n{traceback.format_exc()}"
 
-    def _is_special_command(self, cmd_name: str) -> bool:
-        """Check if command is a special command that affects agent state"""
-        return cmd_name in self.special_tool_commands
-
-    def get_tool_params(self) -> List[ChatCompletionToolParam]:
-        """Get tool parameters for LLM function calling"""
-        return [tool.to_tool_param() for tool in self.tools]
+    def _is_special_tool(self, name: str) -> bool:
+        """Check if command is a special tool that affects agent state"""
+        return name.lower() in self.special_tools

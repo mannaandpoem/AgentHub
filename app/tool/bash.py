@@ -1,8 +1,9 @@
-import subprocess
-from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Tuple, Union
+import asyncio
+import os
+from typing import Optional
 
-from app.tool.tool import Tool
+from app.exceptions import ToolError
+from app.tool.base import BaseTool, CLIResult, ToolResult
 
 
 _BASH_DESCRIPTION = """Execute a bash command in the terminal.
@@ -12,12 +13,112 @@ _BASH_DESCRIPTION = """Execute a bash command in the terminal.
 """
 
 
-class Bash(Tool):
+class _BashSession:
+    """A session of a bash shell."""
+
+    _started: bool
+    _process: asyncio.subprocess.Process
+
+    command: str = "/bin/bash"
+    _output_delay: float = 0.2  # seconds
+    _timeout: float = 120.0  # seconds
+    _sentinel: str = "<<exit>>"
+
+    def __init__(self):
+        self._started = False
+        self._timed_out = False
+
+    async def start(self):
+        if self._started:
+            return
+
+        self._process = await asyncio.create_subprocess_shell(
+            self.command,
+            preexec_fn=os.setsid,
+            shell=True,
+            bufsize=0,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        self._started = True
+
+    def stop(self):
+        """Terminate the bash shell."""
+        if not self._started:
+            raise ToolError("Session has not started.")
+        if self._process.returncode is not None:
+            return
+        self._process.terminate()
+
+    async def run(self, command: str):
+        """Execute a command in the bash shell."""
+        if not self._started:
+            raise ToolError("Session has not started.")
+        if self._process.returncode is not None:
+            return ToolResult(
+                system="tool must be restarted",
+                error=f"bash has exited with returncode {self._process.returncode}",
+            )
+        if self._timed_out:
+            raise ToolError(
+                f"timed out: bash has not returned in {self._timeout} seconds and must be restarted",
+            )
+
+        # we know these are not None because we created the process with PIPEs
+        assert self._process.stdin
+        assert self._process.stdout
+        assert self._process.stderr
+
+        # send command to the process
+        self._process.stdin.write(
+            command.encode() + f"; echo '{self._sentinel}'\n".encode()
+        )
+        await self._process.stdin.drain()
+
+        # read output from the process, until the sentinel is found
+        try:
+            async with asyncio.timeout(self._timeout):
+                while True:
+                    await asyncio.sleep(self._output_delay)
+                    # if we read directly from stdout/stderr, it will wait forever for
+                    # EOF. use the StreamReader buffer directly instead.
+                    output = (
+                        self._process.stdout._buffer.decode()
+                    )  # pyright: ignore[reportAttributeAccessIssue]
+                    if self._sentinel in output:
+                        # strip the sentinel and break
+                        output = output[: output.index(self._sentinel)]
+                        break
+        except asyncio.TimeoutError:
+            self._timed_out = True
+            raise ToolError(
+                f"timed out: bash has not returned in {self._timeout} seconds and must be restarted",
+            ) from None
+
+        if output.endswith("\n"):
+            output = output[:-1]
+
+        error = (
+            self._process.stderr._buffer.decode()
+        )  # pyright: ignore[reportAttributeAccessIssue]
+        if error.endswith("\n"):
+            error = error[:-1]
+
+        # clear the buffers so that the next output can be read correctly
+        self._process.stdout._buffer.clear()  # pyright: ignore[reportAttributeAccessIssue]
+        self._process.stderr._buffer.clear()  # pyright: ignore[reportAttributeAccessIssue]
+
+        return CLIResult(output=output, error=error)
+
+
+class Bash(BaseTool):
     """A tool for executing bash commands"""
 
-    name: ClassVar[str] = "bash"
-    description: ClassVar[str] = "A tool for executing bash commands"
-    parameters: ClassVar[dict] = {
+    name: str = "bash"
+    description: str = "A tool for executing bash commands"
+    parameters: dict = {
         "type": "object",
         "properties": {
             "command": {
@@ -28,62 +129,30 @@ class Bash(Tool):
         "required": ["command"],
     }
 
+    _session: Optional[_BashSession] = None
+
     async def execute(
-        self,
-        command: Union[List[str], str],
-        cwd: Optional[Union[str, Path]] = None,
-        env: Optional[Dict] = None,
-        timeout: int = 600,
-        return_string: bool = True,
-    ) -> Union[str, Tuple[str, str, int]]:
-        """
-        Execute a command asynchronously and return its output.
+        self, command: str | None = None, restart: bool = False, **kwargs
+    ) -> CLIResult:
+        if restart:
+            if self._session:
+                self._session.stop()
+            self._session = _BashSession()
+            await self._session.start()
 
-        Args:
-            command (Union[List[str], str]): The command to execute and its arguments.
-            cwd (Optional[Union[str, Path]]): The working directory for the command.
-            env (Optional[Dict]): Environment variables for the command.
-            timeout (int): Timeout in seconds. Defaults to 600.
-            return_string (bool): If True, returns formatted string output. Defaults to True.
+            return ToolResult(system="tool has been restarted.")
 
-        Returns:
-            Union[str, Tuple[str, str, int]]: Command output as string or tuple of (stdout, stderr, returncode)
-        """
-        cwd = str(cwd) if cwd else None
-        shell = isinstance(command, str)
+        if self._session is None:
+            self._session = _BashSession()
+            await self._session.start()
 
-        try:
-            result = subprocess.run(
-                command,
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=timeout,
-                shell=shell,
-            )
+        if command is not None:
+            return await self._session.run(command)
 
-            if return_string:
-                if result.returncode == 0 and not result.stderr:
-                    return result.stdout.strip()
+        raise ToolError("no command provided.")
 
-                output_parts = []
-                if result.stdout:
-                    output_parts.append(f"stdout:\n{result.stdout.strip()}")
-                if result.stderr:
-                    output_parts.append(f"stderr:\n{result.stderr.strip()}")
-                if result.returncode != 0:
-                    output_parts.append(f"return code: {result.returncode}")
 
-                return "\n\n".join(output_parts)
-
-            return result.stdout, result.stderr, result.returncode
-
-        except subprocess.TimeoutExpired:
-            if return_string:
-                return f"Command timed out after {timeout} seconds"
-            return "", f"Command timed out after {timeout} seconds", 1
-        except Exception as e:
-            if return_string:
-                return f"Error executing command: {str(e)}"
-            return "", f"Error executing command: {str(e)}", 1
+if __name__ == "__main__":
+    bash = Bash()
+    rst = asyncio.run(bash.execute("ls -l"))
+    print(rst)

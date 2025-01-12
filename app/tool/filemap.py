@@ -1,17 +1,15 @@
 import warnings
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, Dict, Optional
 
 from tree_sitter_languages import get_language, get_parser
 
-from app.tool.tool import Tool
+from app.tool.base import BaseTool
 
 
-class Filemap(Tool):
-    name: ClassVar[str] = "filemap"
-    description: ClassVar[
-        str
-    ] = "Print the contents of a Python file, skipping lengthy function and method definitions."
-    parameters: ClassVar[Optional[Dict[str, Any]]] = {
+class Filemap(BaseTool):
+    name: str = "filemap"
+    description: str = "Print the contents of a Python file, skipping lengthy function and method definitions."
+    parameters: Optional[Dict[str, Any]] = {
         "type": "object",
         "properties": {
             "file_path": {
@@ -22,7 +20,7 @@ class Filemap(Tool):
         "required": ["file_path"],
     }
 
-    def execute(self, file_path: str) -> str:
+    async def execute(self, file_path: str) -> str:
         """
         Execute the filemap tool.
 

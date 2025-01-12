@@ -1,39 +1,21 @@
 import asyncio
 import os
 import shlex
-from typing import ClassVar, Literal, Optional
+from typing import Optional
 
-from pydantic import BaseModel
-
-from app.tool.tool import Tool
+from app.tool.base import BaseTool, CLIResult
 
 
-class TerminalOutput(BaseModel):
-    """Model for terminal command output."""
-
-    output: str
-    status: Literal["completed", "failed"]
-    error: Optional[str] = None
-
-    def to_string(self) -> str:
-        return self.output if self.status == "completed" else f"Error: {self.error}"
-
-    def __str__(self):
-        return self.to_string()
-
-
-class Terminal(Tool):
-    name: ClassVar[str] = "execute_command"
-    description: ClassVar[
-        str
-    ] = """Request to execute a CLI command on the system.
+class Terminal(BaseTool):
+    name: str = "execute_command"
+    description: str = """Request to execute a CLI command on the system.
 Use this when you need to perform system operations or run specific commands to accomplish any step in the user's task.
 You must tailor your command to the user's system and provide a clear explanation of what the command does.
 Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run.
 Commands will be executed in the current working directory.
 Note: You MUST append a `sleep 0.05` to the end of the command for commands that will complete in under 50ms, as this will circumvent a known issue with the terminal tool where it will sometimes not return the output when the command completes too quickly.
 """
-    parameters: ClassVar[dict] = {
+    parameters: dict = {
         "type": "object",
         "properties": {
             "command": {
@@ -55,7 +37,7 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
             command (str): The terminal command to execute.
 
         Returns:
-            str: The output, status, and error of the command execution.
+            str: The output, and error of the command execution.
         """
         sanitized_command = self._sanitize_command(command)
 
@@ -72,14 +54,11 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
                     cwd=self.current_path,
                 )
                 stdout, stderr = await self.process.communicate()
-                status = "completed" if self.process.returncode == 0 else "failed"
-                output = TerminalOutput(
-                    output=stdout.decode().strip(),
-                    status=status,
-                    error=stderr.decode().strip(),
+                output = CLIResult(
+                    output=stdout.decode().strip(), error=stderr.decode().strip()
                 )
             except Exception as e:
-                output = TerminalOutput(output="", status="failed", error=str(e))
+                output = CLIResult(output="", error=str(e))
             finally:
                 self.process = None
 
@@ -94,7 +73,7 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
             command (str): The terminal command to execute within the environment.
 
         Returns:
-            str: The output, status, and error of the command execution.
+            str: The output, and error of the command execution.
         """
         sanitized_command = self._sanitize_command(command)
 
@@ -104,7 +83,7 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
 
         return await self.execute(conda_command)
 
-    async def _handle_cd_command(self, command: str) -> TerminalOutput:
+    async def _handle_cd_command(self, command: str) -> CLIResult:
         """
         Handle 'cd' commands to change the current path.
 
@@ -124,15 +103,11 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
 
         if os.path.isdir(new_path):
             self.current_path = new_path
-            return TerminalOutput(
-                output=f"Changed directory to {self.current_path}",
-                status="completed",
-                error="",
+            return CLIResult(
+                output=f"Changed directory to {self.current_path}", error=""
             )
         else:
-            return TerminalOutput(
-                output="", status="failed", error=f"No such directory: {new_path}"
-            )
+            return CLIResult(output="", error=f"No such directory: {new_path}")
 
     @staticmethod
     def _sanitize_command(command: str) -> str:

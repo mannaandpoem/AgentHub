@@ -1,10 +1,11 @@
 import os
 import time
-from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar, List, Optional, Set
+from typing import List, Optional, Set
 
-from app.tool.tool import Tool
+from pydantic import Field
+
+from app.tool.base import BaseTool, ToolResult
 
 
 # Constants
@@ -12,12 +13,11 @@ FILES_LIMIT = 250
 TIMEOUT_SECONDS = 10
 
 
-@dataclass
-class ListFilesOutput:
-    """Output class for ListFiles tool containing the list of found files."""
+class ListFilesResult(ToolResult):
+    """Result class for ListFiles tool containing the list of found files."""
 
-    files: List[Path]
-    limit_reached: bool
+    files: List[Path] = Field(default_factory=list)
+    limit_reached: bool = Field(default=False)
 
     def to_string(self, relative_to: Optional[Path] = None) -> str:
         """Convert the file list to a formatted string.
@@ -42,17 +42,15 @@ class ListFilesOutput:
         return output
 
 
-class ListFiles(Tool):
-    name: ClassVar[str] = "list_files"
-    description: ClassVar[
-        str
-    ] = """
+class ListFiles(BaseTool):
+    name: str = "list_files"
+    description: str = """
     List files and directories within the specified directory.
     If recursive is true, it will list all files and directories recursively.
     If recursive is false, it will only list the top-level contents.
     Do not use this tool to confirm the existence of files you may have created.
     """
-    parameters: ClassVar[dict] = {
+    parameters: dict = {
         "type": "object",
         "properties": {
             "directory_path": {
@@ -79,13 +77,15 @@ class ListFiles(Tool):
         """Check if the path should be ignored based on patterns."""
         return any(part in ignore_patterns for part in path.parts)
 
-    async def execute(self, directory_path: str, recursive: bool) -> str:
+    async def execute(self, directory_path: str, recursive: bool) -> ListFilesResult:
         """Execute the list_files tool with given parameters."""
         dir_path = Path(directory_path).resolve()
 
         # Check for root/home directory
         if self.is_root_or_home(dir_path):
-            return f"Access denied: Cannot list {dir_path} (root or home directory)"
+            return ListFilesResult(
+                error=f"Access denied: Cannot list {dir_path} (root or home directory)"
+            )
 
         # Initialize variables
         results: List[Path] = []
@@ -115,8 +115,8 @@ class ListFiles(Tool):
         while queue and len(results) < FILES_LIMIT:
             # Check timeout
             if time.time() - start_time > TIMEOUT_SECONDS:
-                output = ListFilesOutput(files=results, limit_reached=True)
-                return output.to_string(relative_to=dir_path)
+                result = ListFilesResult(files=results, limit_reached=True)
+                return result.replace(output=result.to_string(relative_to=dir_path))
 
             current_dir = queue.pop(0)
             if current_dir in visited:
@@ -127,8 +127,10 @@ class ListFiles(Tool):
             try:
                 for entry in os.scandir(current_dir):
                     if len(results) >= FILES_LIMIT:
-                        output = ListFilesOutput(files=results, limit_reached=True)
-                        return output.to_string(relative_to=dir_path)
+                        result = ListFilesResult(files=results, limit_reached=True)
+                        return result.replace(
+                            output=result.to_string(relative_to=dir_path)
+                        )
 
                     entry_path = Path(entry.path)
 
@@ -149,7 +151,7 @@ class ListFiles(Tool):
             except OSError:
                 continue
 
-        output = ListFilesOutput(
+        result = ListFilesResult(
             files=results, limit_reached=len(results) >= FILES_LIMIT
         )
-        return output.to_string(relative_to=dir_path)
+        return result.replace(output=result.to_string(relative_to=dir_path))
