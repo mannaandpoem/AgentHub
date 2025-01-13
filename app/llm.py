@@ -19,9 +19,15 @@ class LLM(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def __init__(self, llm_config: Optional[LLMSettings] = None, **data):
+    def __init__(self, name: str, llm_config: Optional[LLMSettings] = None, **data):
         if llm_config is None:
             llm_config = config.llm
+
+        # Gets the configuration for the specified name
+        if name not in llm_config:
+            raise ValueError(f"LLM configuration '{name}' not found")
+
+        llm_config = llm_config[name]
 
         client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
 
@@ -148,7 +154,7 @@ class LLM(BaseModel):
 
 
 async def main():
-    llm = LLM()
+    llm = LLM(name="think")
     tools = [
         {
             "type": "function",

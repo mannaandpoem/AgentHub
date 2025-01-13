@@ -1,5 +1,6 @@
 import threading
 from pathlib import Path
+from typing import Dict
 
 import yaml
 from pydantic import BaseModel, Field
@@ -15,6 +16,7 @@ WORKSPACE_ROOT = PROJECT_ROOT / "workspace"
 
 
 class LLMSettings(BaseModel):
+    # name: str = Field(..., description="Node LLM name")
     model: str = Field(..., description="Model name")
     base_url: str = Field(..., description="API base URL")
     api_key: str = Field(..., description="API key")
@@ -23,7 +25,7 @@ class LLMSettings(BaseModel):
 
 
 class AppConfig(BaseModel):
-    llm: LLMSettings
+    llm: Dict[str, LLMSettings]
 
 
 class Config:
@@ -66,14 +68,20 @@ class Config:
     def _load_initial_config(self):
         raw_config = self._load_config()
 
+        # 获取 llm 配置部分
+        llm_configs = raw_config.get("llm", {})
+
         config_dict = {
             "llm": {
-                "model": raw_config.get("llm", {}).get("model"),
-                "base_url": raw_config.get("llm", {}).get("base_url"),
-                "api_key": raw_config.get("llm", {}).get("api_key"),
-                "max_tokens": raw_config.get("llm", {}).get("max_tokens", 4096),
-                "temperature": raw_config.get("llm", {}).get("temperature", 1.0),
-            },
+                name: {
+                    "model": config.get("model"),
+                    "base_url": config.get("base_url"),
+                    "api_key": config.get("api_key"),
+                    "max_tokens": config.get("max_tokens", 4096),
+                    "temperature": config.get("temperature", 1.0),
+                }
+                for name, config in llm_configs.items()
+            }
         }
 
         self._config = AppConfig(**config_dict)
