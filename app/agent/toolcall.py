@@ -10,6 +10,7 @@ from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
 from app.tool import Bash, Finish, ToolCollection
+from app.tool.base import AgentAwareTool
 
 
 class ToolCallAgent(BaseAgent):
@@ -21,11 +22,14 @@ class ToolCallAgent(BaseAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    tool_collection: ToolCollection = ToolCollection(Bash(), Finish())
+    fixed_tools: ToolCollection = ToolCollection()
+    agent_tools: ToolCollection = ToolCollection(Bash(), Finish())
     tool_choices: Literal["none", "auto", "required"] = "auto"
     special_tools: List[str] = Field(
         default_factory=lambda: [Finish.get_name().lower()]
     )
+
+    fixed_commands: List[ToolCall] = Field(default_factory=list)
     commands: List[ToolCall] = Field(default_factory=list)
 
     max_steps: int = 30
@@ -69,6 +73,8 @@ class ToolCallAgent(BaseAgent):
                 try:
                     self.current_step += 1
 
+                    await self.fixed_act()
+
                     # Think phase
                     should_act = await self.think()
                     if not should_act:
@@ -98,6 +104,31 @@ class ToolCallAgent(BaseAgent):
 
             return "\n".join(results)
 
+    async def fixed_act(self) -> str:
+        """Execute fixed tool before agent decision"""
+
+        for tool in self.fixed_tools:
+            if isinstance(tool, AgentAwareTool):
+                tool.agent = self
+
+        tools = self.fixed_tools.tool_map
+
+        results = []
+        for tool_name, tool_object in tools.items():  # 遍历字典
+            name = tool_object.name  # 从对象中获取 name 属性
+            result = await self.fixed_tools.execute(name=name)
+            results.append(str(result))
+
+            logger.info(f"{tool_name} content: {str(result)}")
+
+            # # Add tool response to memory
+            # tool_msg = Message.user_message(content=str(result))
+            #
+            # self.memory.add_message(tool_msg)
+
+        return "\n\n".join(results)
+
+
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
         messages = self.memory.messages
@@ -105,10 +136,12 @@ class ToolCallAgent(BaseAgent):
             user_msg = Message.user_message(self.next_step_prompt)
             messages = messages + [user_msg]
 
+        tools_dict = self.agent_tools.tool_map
+
         response = await self.llm.ask_tool(
             messages=messages,
             system_msgs=[self.system_prompt] if self.system_prompt else None,
-            tools=self.tool_collection.to_params(),
+            tools=self.agent_tools.to_params(),
             tool_choice=self.tool_choices,
         )
 
@@ -177,11 +210,11 @@ class ToolCallAgent(BaseAgent):
                 raise ValueError("No command specified")
 
             cmd_name = command.function.name
-            if cmd_name not in self.tool_collection.tool_map:
+            if cmd_name not in self.agent_tools.tool_map:
                 raise ValueError(f"Command '{cmd_name}' not found")
 
             args = json.loads(command.function.arguments)
-            result = await self.tool_collection.execute(name=cmd_name, tool_input=args)
+            result = await self.agent_tools.execute(name=cmd_name, tool_input=args)
 
             observation = f"Observed result of {cmd_name}:\n{str(result) if result else 'Command completed successfully with no output.'}"
 

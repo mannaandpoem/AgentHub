@@ -1,11 +1,11 @@
 import asyncio
 
-from app.agent.toolcall import ToolCallAgent
+from app.agent.codeact import CodeActAgent
 from app.logger import logger
 
 
 async def main():
-    agent = ToolCallAgent()
+    agent = CodeActAgent()
     while True:
         try:
             prompt = input("Enter your prompt (or 'exit' to quit): ")

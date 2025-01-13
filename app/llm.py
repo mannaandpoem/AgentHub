@@ -48,26 +48,26 @@ class LLM(BaseModel):
     )
     async def ask(
         self,
-        prompt: str,
+        messages: List[dict],
+        system_msgs: Optional[str] = None,
         stream: bool = True,
-        system_prompt: str = "You are a helpful assistant.",
     ) -> str:
         """
         Send a prompt to the LLM and get the response.
 
         Args:
-            prompt (str): The prompt to send.
+            messages: List of conversation messages
+            system_msgs: Optional system messages to prepend
             stream (bool): Whether to stream the response.
-            system_prompt (str): The system prompt to send.
 
         Returns:
             str: The generated response.
         """
         # Construct messages
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ]
+        if system_msgs:
+            messages = [
+                {"role": "system", "content": system_msgs}
+            ] + messages
 
         if not stream:
             # For non-streaming requests
@@ -78,7 +78,7 @@ class LLM(BaseModel):
                 temperature=self.temperature,
                 stream=False,
             )
-            return response["choices"][0]["message"]["content"].strip()
+            return response.choices[0].message.content
 
         # For streaming requests
         response = await self.client.chat.completions.create(
@@ -179,7 +179,7 @@ async def main():
         tools=tools,
         tool_choice="auto",
     )
-    print(response)
+    print(response.tool_calls)
 
 
 if __name__ == "__main__":
