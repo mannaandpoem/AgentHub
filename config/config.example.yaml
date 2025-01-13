@@ -1,6 +1,19 @@
 llm:
-  model: "deepseek-chat"  # or gpt-4o / other llm model
-  base_url: "https://api.deepseek.com/v1"  # or forward url / other llm url
-  api_key: "sk-..."  # your api key
-  max_tokens: 4096  # max tokens for each request
-  temperature: 1.0  # temperature for sampling
+  CodeActAgent:
+    model: "deepseek-chat"  # or gpt-4o / other llm model
+    base_url: "https://api.deepseek.com/v1"  # or forward url / other llm url
+    api_key: "sk-..."  # your api key
+    max_tokens: 4096  # max tokens for each request
+    temperature: 1.0  # temperature for sampling
+  SWE:
+    model: "deepseek-chat"  # or gpt-4o / other llm model
+    base_url: "https://api.deepseek.com/v1"  # or forward url / other llm url
+    api_key: "sk-..."  # your api key
+    max_tokens: 4096  # max tokens for each request
+    temperature: 1.0  # temperature for sampling
+  writing:
+    model: "deepseek-chat"  # or gpt-4o / other llm model
+    base_url: "https://api.deepseek.com/v1"  # or forward url / other llm url
+    api_key: "sk-..."  # your api key
+    max_tokens: 4096  # max tokens for each request
+    temperature: 1.0  # temperature for sampling
