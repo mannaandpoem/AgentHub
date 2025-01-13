@@ -29,7 +29,7 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
     current_path: str = os.getcwd()
     lock: asyncio.Lock = asyncio.Lock()
 
-    async def execute(self, command: str) -> str:
+    async def execute(self, command: str) -> CLIResult:
         """
         Execute a terminal command asynchronously with persistent context.
 
@@ -62,9 +62,9 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
             finally:
                 self.process = None
 
-        return output.to_string()
+        return output
 
-    async def execute_in_env(self, env_name: str, command: str) -> str:
+    async def execute_in_env(self, env_name: str, command: str) -> CLIResult:
         """
         Execute a terminal command asynchronously within a specified Conda environment.
 
