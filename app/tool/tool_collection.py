@@ -15,7 +15,7 @@ class ToolCollection:
     def to_params(self) -> List[Dict[str, Any]]:
         return [tool.to_param() for tool in self.tools]
 
-    async def execute(self, *, name: str, tool_input: dict[str, Any]) -> ToolResult:
+    async def execute(self, *, name: str, tool_input: Dict[str, Any]) -> ToolResult:
         tool = self.tool_map.get(name)
         if not tool:
             return ToolFailure(error=f"Tool {name} is invalid")
