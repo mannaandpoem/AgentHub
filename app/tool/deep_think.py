@@ -1,12 +1,15 @@
-from app.tool.base import BaseTool, AgentAwareTool
 from app.llm import LLM
 from app.schema import Message
+from app.tool.base import AgentAwareTool, BaseTool
+
 
 DESCRIPTION = "Do deep thinking"
 
-SYSTEM = ("Analyze the situation according to the current state.There are many other tools on the outside that don't "
-          "need to think about the impossible, just analyze and think. And analyze whether the task has been "
-          "completed.")
+SYSTEM = (
+    "Analyze the situation according to the current state.There are many other tools on the outside that don't "
+    "need to think about the impossible, just analyze and think. And analyze whether the task has been "
+    "completed."
+)
 
 
 class DeepThink(BaseTool, AgentAwareTool):
@@ -25,19 +28,24 @@ class DeepThink(BaseTool, AgentAwareTool):
         "required": ["context"],
     }
 
-    async def execute(
-        self,
-    ):
-        llm = LLM(name="think")
+    llm: LLM | None = None
 
-        if self.agent:
+    def __init__(self):
+        super().__init__()
+        self.llm = LLM()
 
-            messages = self.agent.memory.messages
-            thinking = await llm.ask(messages=messages, system_msgs=SYSTEM, stream=False)
+    async def execute(self, context: str = ""):
+        if not self.agent:
+            raise ValueError("Failed to get agent state")
 
-            thinking_msg = Message.assistant_message(content=thinking)
-            self.agent.memory.messages.append(thinking_msg)
-            return thinking
-        else:
-            raise "Failed to get agent state"
+        if not self.llm:
+            raise ValueError("LLM not initialized")
 
+        messages = self.agent.memory.messages
+        thinking = await self.llm.ask(
+            messages=messages, system_msgs=SYSTEM, stream=False
+        )
+
+        thinking_msg = Message.assistant_message(content=thinking)
+        self.agent.memory.messages.append(thinking_msg)
+        return thinking
