@@ -10,15 +10,15 @@ from app.tool import Finish, StrReplaceEditor, Terminal, ToolCollection
 class CodeActAgent(ToolCallAgent):
     """An agent that implements the CodeActAgent paradigm for executing code and natural conversations."""
 
-    name: str = "CodeActAgent"
+    name: str = "CodeAct"
     description: str = "an autonomous AI programmer that interacts directly with the computer to solve tasks."
 
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    tool_collection: ToolCollection = ToolCollection(
+    agent_tools: ToolCollection = ToolCollection(
         Terminal(), StrReplaceEditor(), Finish()
-    )  # TODO: Add more tools here for CodeActAgent
+    )
     special_tools: List[str] = Field(
         default_factory=lambda: [Finish.get_name().lower()]
     )

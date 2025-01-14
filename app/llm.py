@@ -19,9 +19,19 @@ class LLM(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def __init__(self, llm_config: Optional[LLMSettings] = None, **data):
+    def __init__(
+        self,
+        config_name: str = "default",
+        llm_config: Optional[LLMSettings] = None,
+        **data,
+    ):
         if llm_config is None:
             llm_config = config.llm
+
+        if config_name in llm_config:
+            llm_config = llm_config[config_name]
+        else:
+            raise ValueError(f"LLM configuration '{config_name}' not found")
 
         client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
 
@@ -33,7 +43,7 @@ class LLM(BaseModel):
             max_tokens=llm_config.max_tokens,
             temperature=llm_config.temperature,
             client=client,
-            **data
+            **data,
         )
 
     @retry(
@@ -42,26 +52,24 @@ class LLM(BaseModel):
     )
     async def ask(
         self,
-        prompt: str,
+        messages: List[dict],
+        system_msgs: Optional[str] = None,
         stream: bool = True,
-        system_prompt: str = "You are a helpful assistant.",
     ) -> str:
         """
         Send a prompt to the LLM and get the response.
 
         Args:
-            prompt (str): The prompt to send.
+            messages: List of conversation messages
+            system_msgs: Optional system messages to prepend
             stream (bool): Whether to stream the response.
-            system_prompt (str): The system prompt to send.
 
         Returns:
             str: The generated response.
         """
         # Construct messages
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ]
+        if system_msgs:
+            messages = [{"role": "system", "content": system_msgs}] + messages
 
         if not stream:
             # For non-streaming requests
@@ -72,7 +80,7 @@ class LLM(BaseModel):
                 temperature=self.temperature,
                 stream=False,
             )
-            return response["choices"][0]["message"]["content"].strip()
+            return response.choices[0].message.content
 
         # For streaming requests
         response = await self.client.chat.completions.create(
@@ -109,7 +117,7 @@ class LLM(BaseModel):
         timeout: int = 60,
         tools: Optional[List[dict]] = None,
         tool_choice: Literal["none", "auto", "required"] = "auto",
-        **kwargs
+        **kwargs,
     ):
         """
         Ask LLM using functions/tools and return the response.
@@ -140,7 +148,7 @@ class LLM(BaseModel):
             tools=tools,
             tool_choice=tool_choice,
             timeout=timeout,
-            **kwargs
+            **kwargs,
         )
 
         # Return the first message
@@ -148,7 +156,7 @@ class LLM(BaseModel):
 
 
 async def main():
-    llm = LLM()
+    llm = LLM(name="think")
     tools = [
         {
             "type": "function",
@@ -173,7 +181,7 @@ async def main():
         tools=tools,
         tool_choice="auto",
     )
-    print(response)
+    print(response.tool_calls)
 
 
 if __name__ == "__main__":
