@@ -1,6 +1,7 @@
 from app.tool.attempt_completion_client_request import AttemptCompletionClientRequest
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
+from app.tool.create_chat_completion import CreateChatCompletion
 from app.tool.create_tool import CreateTool
 from app.tool.file_navigator import FileNavigator
 from app.tool.filemap import Filemap
@@ -14,6 +15,7 @@ from app.tool.tool_collection import ToolCollection
 
 
 __all__ = [
+    "BaseTool",
     "AttemptCompletionClientRequest",
     "Bash",
     "CreateTool",
@@ -26,4 +28,5 @@ __all__ = [
     "Terminal",
     "PythonExecute",
     "ToolCollection",
+    "CreateChatCompletion",
 ]

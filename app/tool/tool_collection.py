@@ -40,3 +40,6 @@ class ToolCollection:
             except ToolError as e:
                 results.append(ToolFailure(error=e.message))
         return results
+
+    def get_tool(self, name: str) -> BaseTool:
+        return self.tool_map.get(name)

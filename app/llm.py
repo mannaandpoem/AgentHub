@@ -25,13 +25,8 @@ class LLM(BaseModel):
         llm_config: Optional[LLMSettings] = None,
         **data,
     ):
-        if llm_config is None:
-            llm_config = config.llm
-
-        if config_name in llm_config:
-            llm_config = llm_config[config_name]
-        else:
-            raise ValueError(f"LLM configuration '{config_name}' not found")
+        llm_config = llm_config or config.llm
+        llm_config = llm_config.get(config_name, llm_config["default"])
 
         client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
 

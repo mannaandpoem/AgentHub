@@ -17,7 +17,7 @@ from app.tool import (
 class MidwitAgent(ToolCallAgent):
     """An agent that implements the MidwitAgent paradigm for executing code and natural conversations."""
 
-    name: str = "MidwitAgent"
+    name: str = "midwit"
     description: str = "a brilliant and meticulous engineer assigned to help the user with any query they have."
 
     system_prompt: str = SYSTEM_PROMPT
