@@ -132,6 +132,7 @@ class ToolCallAgent(BaseAgent):
             tools=self.tool_collection.to_params(),
             tool_choice=self.tool_choices,
         )
+        self.commands = response.tool_calls
 
         logger.info(f"Tool content: {response.content}")
         logger.info(f"Tool calls: {response.tool_calls}")

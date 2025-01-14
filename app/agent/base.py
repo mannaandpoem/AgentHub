@@ -39,7 +39,7 @@ class BaseAgent(BaseModel, ABC):
     def initialize_agent(self) -> "BaseAgent":
         """Initialize agent with default settings"""
         if self.llm is None:
-            self.llm = LLM(name=self.name)
+            self.llm = LLM(config_name=self.name.lower())
         return self
 
     @asynccontextmanager

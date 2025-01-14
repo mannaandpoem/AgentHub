@@ -32,7 +32,7 @@ class DeepThink(BaseTool, AgentAwareTool):
 
     def __init__(self):
         super().__init__()
-        self.llm = LLM()
+        self.llm = LLM(config_name=self.name)
 
     async def execute(self, context: str = ""):
         if not self.agent:

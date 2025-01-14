@@ -19,15 +19,19 @@ class LLM(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def __init__(self, name: str, llm_config: Optional[LLMSettings] = None, **data):
+    def __init__(
+        self,
+        config_name: str = "default",
+        llm_config: Optional[LLMSettings] = None,
+        **data,
+    ):
         if llm_config is None:
             llm_config = config.llm
 
-        # Gets the configuration for the specified name
-        if name not in llm_config:
-            raise ValueError(f"LLM configuration '{name}' not found")
-
-        llm_config = llm_config[name]
+        if config_name in llm_config:
+            llm_config = llm_config[config_name]
+        else:
+            raise ValueError(f"LLM configuration '{config_name}' not found")
 
         client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
 
@@ -39,7 +43,7 @@ class LLM(BaseModel):
             max_tokens=llm_config.max_tokens,
             temperature=llm_config.temperature,
             client=client,
-            **data
+            **data,
         )
 
     @retry(
@@ -65,9 +69,7 @@ class LLM(BaseModel):
         """
         # Construct messages
         if system_msgs:
-            messages = [
-                {"role": "system", "content": system_msgs}
-            ] + messages
+            messages = [{"role": "system", "content": system_msgs}] + messages
 
         if not stream:
             # For non-streaming requests
@@ -115,7 +117,7 @@ class LLM(BaseModel):
         timeout: int = 60,
         tools: Optional[List[dict]] = None,
         tool_choice: Literal["none", "auto", "required"] = "auto",
-        **kwargs
+        **kwargs,
     ):
         """
         Ask LLM using functions/tools and return the response.
@@ -146,7 +148,7 @@ class LLM(BaseModel):
             tools=tools,
             tool_choice=tool_choice,
             timeout=timeout,
-            **kwargs
+            **kwargs,
         )
 
         # Return the first message

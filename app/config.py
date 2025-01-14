@@ -1,8 +1,8 @@
 import threading
+import tomllib
 from pathlib import Path
 from typing import Dict
 
-import yaml
 from pydantic import BaseModel, Field
 
 
@@ -16,7 +16,6 @@ WORKSPACE_ROOT = PROJECT_ROOT / "workspace"
 
 
 class LLMSettings(BaseModel):
-    # name: str = Field(..., description="Node LLM name")
     model: str = Field(..., description="Model name")
     base_url: str = Field(..., description="API base URL")
     api_key: str = Field(..., description="API key")
@@ -51,43 +50,48 @@ class Config:
     @staticmethod
     def _get_config_path() -> Path:
         root = PROJECT_ROOT
-        config_path = root / "config" / "config.yaml"
-        if not config_path.exists():
-            config_path = root / "config" / "config.example.yaml"
-        if not config_path.exists():
-            raise FileNotFoundError(
-                "Configuration file config.yaml or config.example.yaml not found"
-            )
-        return config_path
+        config_path = root / "config" / "config.toml"
+        if config_path.exists():
+            return config_path
+        example_path = root / "config" / "config.example.toml"
+        if example_path.exists():
+            return example_path
+        raise FileNotFoundError("No configuration file found in config directory")
 
     def _load_config(self) -> dict:
         config_path = self._get_config_path()
-        with config_path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+        with config_path.open("rb") as f:
+            return tomllib.load(f)
 
     def _load_initial_config(self):
         raw_config = self._load_config()
+        base_llm = raw_config.get("llm", {})
+        llm_overrides = {
+            k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)
+        }
 
-        # 获取 llm 配置部分
-        llm_configs = raw_config.get("llm", {})
+        default_settings = {
+            "model": base_llm.get("model"),
+            "base_url": base_llm.get("base_url"),
+            "api_key": base_llm.get("api_key"),
+            "max_tokens": base_llm.get("max_tokens", 4096),
+            "temperature": base_llm.get("temperature", 1.0),
+        }
 
         config_dict = {
             "llm": {
-                name: {
-                    "model": config.get("model"),
-                    "base_url": config.get("base_url"),
-                    "api_key": config.get("api_key"),
-                    "max_tokens": config.get("max_tokens", 4096),
-                    "temperature": config.get("temperature", 1.0),
-                }
-                for name, config in llm_configs.items()
+                "default": default_settings,
+                **{
+                    name: {**default_settings, **override_config}
+                    for name, override_config in llm_overrides.items()
+                },
             }
         }
 
         self._config = AppConfig(**config_dict)
 
     @property
-    def llm(self) -> LLMSettings:
+    def llm(self) -> Dict[str, LLMSettings]:
         return self._config.llm
 
 
