@@ -23,15 +23,15 @@ class MidwitAgent(ToolCallAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    tool_collection: ToolCollection = ToolCollection(
+    available_tools: ToolCollection = ToolCollection(
         Terminal(),
         StrReplaceEditor(),
         SearchFile(),
         ListFiles(),
         AttemptCompletionClientRequest(),
     )
-    special_tools: List[str] = Field(
-        default_factory=lambda: [AttemptCompletionClientRequest.get_name().lower()]
+    special_tool_names: List[str] = Field(
+        default_factory=lambda: [AttemptCompletionClientRequest().name]
     )
 
     max_steps: int = 30

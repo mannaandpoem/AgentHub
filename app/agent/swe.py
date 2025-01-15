@@ -16,12 +16,10 @@ class SWEAgent(ToolCallAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_TEMPLATE
 
-    tool_collection: ToolCollection = ToolCollection(
+    available_tools: ToolCollection = ToolCollection(
         Bash(), StrReplaceEditor(), Finish()
     )
-    special_tools: List[str] = Field(
-        default_factory=lambda: [Finish.get_name().lower()]
-    )
+    special_tool_names: List[str] = Field(default_factory=lambda: [Finish().name])
 
     max_steps: int = 30
 

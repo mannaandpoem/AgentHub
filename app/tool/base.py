@@ -31,10 +31,6 @@ class BaseTool(ABC, BaseModel):
             },
         }
 
-    @classmethod
-    def get_name(cls) -> str:
-        return cls.__name__
-
 
 class ToolResult(BaseModel):
     """Represents the result of a tool execution."""
@@ -49,7 +45,7 @@ class ToolResult(BaseModel):
 
     def __add__(self, other: "ToolResult"):
         def combine_fields(
-                field: Optional[str], other_field: Optional[str], concatenate: bool = True
+            field: Optional[str], other_field: Optional[str], concatenate: bool = True
         ):
             if field and other_field:
                 if concatenate:

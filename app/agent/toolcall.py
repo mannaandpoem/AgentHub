@@ -22,14 +22,12 @@ class ToolCallAgent(BaseAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    fixed_actions: Optional[ToolCollection] = None
-    tool_collection: ToolCollection = ToolCollection(CreateChatCompletion(), Finish())
+    fixed_tools: Optional[ToolCollection] = None
+    available_tools: ToolCollection = ToolCollection(CreateChatCompletion(), Finish())
     tool_choices: Literal["none", "auto", "required"] = "auto"
-    special_tools: List[str] = Field(
-        default_factory=lambda: [Finish.get_name().lower()]
-    )
+    special_tool_names: List[str] = Field(default_factory=lambda: [Finish().name])
 
-    commands: List[ToolCall] = Field(default_factory=list)
+    tool_calls: List[ToolCall] = Field(default_factory=list)
 
     max_steps: int = 30
 
@@ -40,8 +38,8 @@ class ToolCallAgent(BaseAgent):
     @model_validator(mode="after")
     def _setup_aware_tools(self) -> "ToolCallAgent":
         """Configure agent-aware tools with reference to this agent."""
-        if self.fixed_actions:
-            for tool in self.fixed_actions:
+        if self.fixed_tools:
+            for tool in self.fixed_tools:
                 if isinstance(tool, AgentAwareTool):
                     tool.agent = self
         return self
@@ -114,11 +112,11 @@ class ToolCallAgent(BaseAgent):
 
     async def fixed_act(self) -> str:
         """Execute fixed tool before agent decision"""
-        if not self.fixed_actions:
+        if not self.fixed_tools:
             return ""
 
         # Execute all tools sequentially
-        results = await self.fixed_actions.execute_all()
+        results = await self.fixed_tools.execute_all()
 
         # Convert to string format and Log results
         str_results = "\n\n".join([str(r) for r in results])
@@ -136,10 +134,10 @@ class ToolCallAgent(BaseAgent):
         response = await self.llm.ask_tool(
             messages=messages,
             system_msgs=[self.system_prompt] if self.system_prompt else None,
-            tools=self.tool_collection.to_params(),
+            tools=self.available_tools.to_params(),
             tool_choice=self.tool_choices,
         )
-        self.commands = response.tool_calls
+        self.tool_calls = response.tool_calls
 
         logger.info(f"Tool content: {response.content}")
         logger.info(f"Tool calls: {response.tool_calls}")
@@ -155,24 +153,26 @@ class ToolCallAgent(BaseAgent):
 
         # Create and add assistant message
         assistant_msg = (
-            Message.from_tool_calls(content=response.content, tool_calls=self.commands)
-            if self.commands
+            Message.from_tool_calls(
+                content=response.content, tool_calls=self.tool_calls
+            )
+            if self.tool_calls
             else Message.assistant_message(response.content)
         )
         self.memory.add_message(assistant_msg)
 
-        if self.tool_choices == "required" and not self.commands:
+        if self.tool_choices == "required" and not self.tool_calls:
             return True  # Will be handled in run()
 
         # For 'auto' mode, continue with content if no commands but content exists
-        if self.tool_choices == "auto" and not self.commands:
+        if self.tool_choices == "auto" and not self.tool_calls:
             return bool(response.content)
 
-        return bool(self.commands)
+        return bool(self.tool_calls)
 
     async def act(self) -> str:
         """Execute tool calls and handle their results"""
-        if not self.commands:
+        if not self.tool_calls:
             if self.tool_choices == "required":
                 raise ValueError("Tool calls required but none provided")
 
@@ -182,7 +182,7 @@ class ToolCallAgent(BaseAgent):
             )
 
         results = []
-        for command in self.commands:
+        for command in self.tool_calls:
             result = await self._execute_tool_call(command)
             logger.info(result)
 
@@ -202,11 +202,11 @@ class ToolCallAgent(BaseAgent):
                 raise ValueError("No command specified")
 
             cmd_name = command.function.name
-            if cmd_name not in self.tool_collection.tool_map:
+            if cmd_name not in self.available_tools.tool_map:
                 raise ValueError(f"Command '{cmd_name}' not found")
 
             args = json.loads(command.function.arguments)
-            result = await self.tool_collection.execute(name=cmd_name, tool_input=args)
+            result = await self.available_tools.execute(name=cmd_name, tool_input=args)
 
             observation = (
                 f"Observed result of cmd executed:\n{result}"
@@ -225,4 +225,4 @@ class ToolCallAgent(BaseAgent):
 
     def _is_special_tool(self, name: str) -> bool:
         """Check if command is a special tool that affects agent state"""
-        return name.lower() in self.special_tools
+        return name.lower() in self.special_tool_names
