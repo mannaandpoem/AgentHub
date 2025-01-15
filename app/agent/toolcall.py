@@ -2,28 +2,28 @@ import asyncio
 import json
 from typing import List, Literal, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.agent.base import BaseAgent
 from app.exceptions import ToolError
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
-from app.tool import Bash, Finish, ToolCollection
+from app.tool import CreateChatCompletion, Finish, ToolCollection
 from app.tool.base import AgentAwareTool
 
 
 class ToolCallAgent(BaseAgent):
     """Base agent class for handling tool/function calls with enhanced abstraction"""
 
-    name: str = "ToolCallAgent"
+    name: str = "toolcall"
     description: str = "an agent that can execute tool calls."
 
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    fixed_actions: ToolCollection = ToolCollection()
-    tool_collection: ToolCollection = ToolCollection(Bash(), Finish())
+    fixed_actions: Optional[ToolCollection] = None
+    tool_collection: ToolCollection = ToolCollection(CreateChatCompletion(), Finish())
     tool_choices: Literal["none", "auto", "required"] = "auto"
     special_tools: List[str] = Field(
         default_factory=lambda: [Finish.get_name().lower()]
@@ -36,6 +36,15 @@ class ToolCallAgent(BaseAgent):
     duplicate_threshold: int = (
         2  # Number of allowed identical responses before considering stuck
     )
+
+    @model_validator(mode="after")
+    def _setup_aware_tools(self) -> "ToolCallAgent":
+        """Configure agent-aware tools with reference to this agent."""
+        if self.fixed_actions:
+            for tool in self.fixed_actions:
+                if isinstance(tool, AgentAwareTool):
+                    tool.agent = self
+        return self
 
     def is_stuck(self) -> bool:
         """Check if the agent is stuck in a loop by detecting duplicate content"""
@@ -105,10 +114,8 @@ class ToolCallAgent(BaseAgent):
 
     async def fixed_act(self) -> str:
         """Execute fixed tool before agent decision"""
-        # Set agent for agent-aware tools
-        for tool in self.fixed_actions:
-            if isinstance(tool, AgentAwareTool):
-                tool.agent = self
+        if not self.fixed_actions:
+            return ""
 
         # Execute all tools sequentially
         results = await self.fixed_actions.execute_all()

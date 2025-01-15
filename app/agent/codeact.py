@@ -16,7 +16,7 @@ class CodeActAgent(ToolCallAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    agent_tools: ToolCollection = ToolCollection(
+    tool_collection: ToolCollection = ToolCollection(
         Terminal(), StrReplaceEditor(), Finish()
     )
     special_tools: List[str] = Field(

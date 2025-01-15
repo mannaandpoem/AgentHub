@@ -1,6 +1,6 @@
 import asyncio
 
-from app.agent.codeact import CodeActAgent
+from app.agent import CodeActAgent
 from app.logger import logger
 
 
