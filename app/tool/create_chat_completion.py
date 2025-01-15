@@ -7,7 +7,9 @@ from app.tool import BaseTool
 
 class CreateChatCompletion(BaseTool):
     name: str = "create_chat_completion"
-    description: str = """Creates a chat completion using an LLM model. The response can be formatted according to a specified schema."""
+    description: str = (
+        "Creates a structured completion with specified output formatting."
+    )
 
     # Type mapping for JSON schema
     type_mapping: dict = {
@@ -126,23 +128,42 @@ class CreateChatCompletion(BaseTool):
         }
 
     async def execute(self, required: list | None = None, **kwargs) -> Any:
-        """Execute the chat completion with type conversion."""
-        required = required or self.required
-        required_field = required[0] if required else "response"
+        """Execute the chat completion with type conversion.
 
+        Args:
+            required: List of required field names or None
+            **kwargs: Response data
+
+        Returns:
+            Converted response based on response_type
+        """
+        required = required or self.required
+
+        # Handle case when required is a list
+        if isinstance(required, list) and len(required) > 0:
+            if len(required) == 1:
+                required_field = required[0]
+                result = kwargs.get(required_field, "")
+            else:
+                # Return multiple fields as a dictionary
+                return {field: kwargs.get(field, "") for field in required}
+        else:
+            required_field = "response"
+            result = kwargs.get(required_field, "")
+
+        # Type conversion logic
         if self.response_type == str:
-            return kwargs.get(required_field, "")
+            return result
 
         if isinstance(self.response_type, type) and issubclass(
             self.response_type, BaseModel
         ):
             return self.response_type(**kwargs)
 
-        response = kwargs.get(required_field, "")
         if get_origin(self.response_type) in (list, dict):
-            return response  # Assuming response is already in correct format
+            return result  # Assuming result is already in correct format
 
         try:
-            return self.response_type(response)
+            return self.response_type(result)
         except (ValueError, TypeError):
-            return response
+            return result

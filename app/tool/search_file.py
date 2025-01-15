@@ -117,24 +117,3 @@ class SearchFile(BaseTool):
                 continue  # Skip files that can't be read
 
         return SearchResult.format_results(results, directory_path)
-
-    @staticmethod
-    def get_evaluation_criteria(trajectory_length: int) -> List[str]:
-        base_criteria = [
-            "Query Relevance: Evaluate if the search query or parameters are well-defined and likely to find relevant code.",
-            "Search Scope Appropriateness: Check if the file patterns and class/function names narrow down the search effectively.",
-            "Relevance of Search Results: Assess whether the search results are directly related to the problem and useful for making progress.",
-            "Size of Search Results: Ensure that the code context provided is appropriately sized—not too large to overwhelm nor too small to be unhelpful.",
-        ]
-
-        if trajectory_length < 3:
-            return [
-                "Exploratory Actions: Recognize that initial searches and information-gathering steps are essential.",
-                "Appropriateness of Action: Evaluate if the action is logical given the current knowledge.",
-            ] + base_criteria
-
-        return [
-            "Solution Quality: Assess the logical changes, contextual fit, and overall improvement.",
-            "Progress Assessment: Evaluate awareness of solution history and planned next steps.",
-            "Repetitive Actions: Detect if repeating unsuccessful actions without progress.",
-        ] + base_criteria

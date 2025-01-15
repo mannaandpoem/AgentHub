@@ -9,7 +9,7 @@ from app.exceptions import ToolError
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
-from app.tool import CreateChatCompletion, Finish, ToolCollection
+from app.tool import CreateChatCompletion, Terminate, ToolCollection
 from app.tool.base import AgentAwareTool
 
 
@@ -23,9 +23,11 @@ class ToolCallAgent(BaseAgent):
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     fixed_tools: Optional[ToolCollection] = None
-    available_tools: ToolCollection = ToolCollection(CreateChatCompletion(), Finish())
+    available_tools: ToolCollection = ToolCollection(
+        CreateChatCompletion(), Terminate()
+    )
     tool_choices: Literal["none", "auto", "required"] = "auto"
-    special_tool_names: List[str] = Field(default_factory=lambda: [Finish().name])
+    special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
 
     tool_calls: List[ToolCall] = Field(default_factory=list)
 

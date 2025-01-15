@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
+from app.agent import TaoAgent
 from app.agent.codeact import CodeActAgent
 from app.agent.midwit import MidwitAgent
 from app.agent.swe import SWEAgent
@@ -60,6 +61,7 @@ class DatasetConfig:
         "swe": SWEAgent,
         "codeact": CodeActAgent,
         "midwit": MidwitAgent,
+        "tao": TaoAgent,
     }
     TEST_REPO_DIR = Path("/Users/manna/data/test_repo")
     DATA_DIR = PROJECT_ROOT / "data/hugging_face"
@@ -184,6 +186,7 @@ class BenchmarkRunner:
         if instance_ids is None:
             # Default hardcoded or environment variable
             instance_ids = ["django__django-13820"]
+            instance_ids = ["astropy__astropy-14309"]
         elif instance_ids == ["all"]:
             # Select all instances
             logger.info("Using all available instances")
@@ -262,6 +265,9 @@ class BenchmarkRunner:
             logger.info(f"**** Starting to run {instance['instance_id']} ****")
             logger.info("User Requirement:\n" + user_requirement)
 
+            if isinstance(agent, TaoAgent):
+                file_localizer = agent.available_tools.get_tool("file_localizer")
+                file_localizer.development_requirement = user_requirement
             await agent.run(user_requirement)
             logger.info(f"**** Finished running {instance['instance_id']} ****")
 
@@ -316,9 +322,10 @@ class BenchmarkRunner:
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="SWE Benchmark Runner")
+    llm_config = config.llm["default"]  # Fixme: Use a specific model
     default_result_dir = (
         WORKSPACE_ROOT
-        / f"result_{config.llm.model.replace('/', '_')}_{datetime.now().strftime('%Y_%m_%d_%H_%M')}"
+        / f"result_{llm_config.model.replace('/', '_')}_{datetime.now().strftime('%Y_%m_%d_%H_%M')}"
     )
 
     parser.add_argument(
@@ -344,8 +351,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-a",
         "--agent",
-        choices=["swe", "codeact", "midwit"],
-        default="codeact",
+        choices=["swe", "codeact", "midwit", "tao"],
+        default="tao",
         help="Select the agent: swe_agent, swe_agent2, or codeact_agent.",
     )
     parser.add_argument(

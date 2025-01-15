@@ -151,7 +151,7 @@ class LLM(BaseModel):
 
 
 async def main():
-    llm = LLM(name="think")
+    llm = LLM()
     tools = [
         {
             "type": "function",
