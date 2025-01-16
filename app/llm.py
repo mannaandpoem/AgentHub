@@ -152,6 +152,10 @@ class LLM(BaseModel):
 
 async def main():
     llm = LLM()
+    response = llm.ask(
+        messages=[{"role": "user", "content": "What is the weather today?"}]
+    )
+    print(response)
     tools = [
         {
             "type": "function",

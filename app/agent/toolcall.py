@@ -185,7 +185,7 @@ class ToolCallAgent(BaseAgent):
 
         results = []
         for command in self.tool_calls:
-            result = await self._execute_tool(command)
+            result = await self.execute_tool(command)
             logger.info(result)
 
             # Add tool response to memory
@@ -197,7 +197,7 @@ class ToolCallAgent(BaseAgent):
 
         return "\n\n".join(results)
 
-    async def _execute_tool(self, command: ToolCall) -> str:
+    async def execute_tool(self, command: ToolCall) -> str:
         """Execute a single tool call and return formatted result"""
         try:
             if not command.function.name:

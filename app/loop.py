@@ -4,7 +4,7 @@ from app.agent.base import BaseAgent
 from app.flow.aflow import AFlow
 from app.flow.base import BaseFlow, FlowType
 from app.flow.basic import BasicFlow
-from app.flow.mcts import MCTSFlow
+from app.flow.mcts.mcts import MCTSFlow
 from app.tool import BaseTool, ToolCollection
 
 

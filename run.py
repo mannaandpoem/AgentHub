@@ -133,5 +133,4 @@ def setup_argparse():
 
 if __name__ == "__main__":
     parser = setup_argparse()
-    args = parser.parse_args()
-    asyncio.run(main(args))
+    asyncio.run(main(parser.parse_args()))
