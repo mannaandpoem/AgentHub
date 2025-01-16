@@ -78,34 +78,27 @@ class ToolCallAgent(BaseAgent):
         results = []
         async with self.state_context(AgentState.RUNNING):
             while self.current_step < self.max_steps:
-                try:
-                    self.current_step += 1
+                self.current_step += 1
 
-                    await self.fixed_act()
+                await self.fixed_act()
 
-                    # Think phase
-                    should_act = await self.think()
-                    if not should_act:
-                        if self.tool_choices == "required":
-                            raise ValueError("Tool calls required but none provided")
-                        results.append("Thinking complete - no action needed")
-                        break
+                # Think phase
+                should_act = await self.think()
+                if not should_act:
+                    if self.tool_choices == "required":
+                        raise ValueError("Tool calls required but none provided")
+                    results.append("Thinking complete - no action needed")
+                    break
 
-                    # Check for stuck state
-                    if self.is_stuck():
-                        self.handle_stuck_state()
+                # Check for stuck state
+                if self.is_stuck():
+                    self.handle_stuck_state()
 
-                    # Act phase
-                    result = await self.act()
-                    results.append(f"Step {self.current_step}: {result}")
+                # Act phase
+                result = await self.act()
+                results.append(f"Step {self.current_step}: {result}")
 
-                    if self.state == AgentState.FINISHED:
-                        break
-
-                except Exception as e:
-                    error_msg = f"Error in step {self.current_step}: {str(e)}"
-                    logger.error(error_msg)
-                    results.append(error_msg)
+                if self.state == AgentState.FINISHED:
                     break
 
                 await asyncio.sleep(0)

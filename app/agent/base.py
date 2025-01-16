@@ -19,7 +19,7 @@ class BaseAgent(BaseModel, ABC):
     system_prompt: Optional[str] = None
     next_step_prompt: Optional[str] = None
 
-    llm: Optional[Any] = None
+    llm: Optional[LLM] = Field(default_factory=LLM)
     memory: Memory = Field(default_factory=Memory)
     state: AgentState = AgentState.IDLE
 
@@ -49,10 +49,6 @@ class BaseAgent(BaseModel, ABC):
         self.state = new_state
         try:
             yield
-        except Exception as e:
-            self.state = AgentState.ERROR
-            logger.error(f"Error in state {new_state}: {str(e)}")
-            raise
         finally:
             self.state = previous_state
 

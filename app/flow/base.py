@@ -1,8 +1,15 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel
 
 from app.agent.toolcall import ToolCallAgent
 from app.tool import ToolCollection
+
+
+class Node(BaseModel):
+    node_id: Any
 
 
 class FlowType(str, Enum):
