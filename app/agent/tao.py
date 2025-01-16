@@ -1,10 +1,11 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
 from app.prompt.tao import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import (
+    CodeReview,
     FileLocalizer,
     StrReplaceEditor,
     Terminal,
@@ -30,10 +31,12 @@ class TaoAgent(ToolCallAgent):
         Terminal(),
         StrReplaceEditor(),
         FileLocalizer(requirement=requirement),
-        # CodeReview(),
+        CodeReview(),
         Terminate(),
     )
-    special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
+    special_tool_names: List[str] = Field(
+        default_factory=lambda: [Terminate().name, CodeReview().name]
+    )
 
     max_steps: int = 30
 
@@ -61,3 +64,11 @@ class TaoAgent(ToolCallAgent):
         )
 
         return await super().think()
+
+    def _should_finish_execution(self, name: str, result: Any) -> bool:
+        """Override to implement specific code review logic"""
+        if name == "code_review":
+            return "LGTM" in str(
+                result
+            )  # FIXME: This is a placeholder for actual code review logic
+        return super()._should_finish_execution(name=name, result=result)

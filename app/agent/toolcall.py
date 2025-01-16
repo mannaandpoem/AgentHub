@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import Field, model_validator
 
@@ -185,7 +185,7 @@ class ToolCallAgent(BaseAgent):
 
         results = []
         for command in self.tool_calls:
-            result = await self._execute_tool_call(command)
+            result = await self._execute_tool(command)
             logger.info(result)
 
             # Add tool response to memory
@@ -197,26 +197,25 @@ class ToolCallAgent(BaseAgent):
 
         return "\n\n".join(results)
 
-    async def _execute_tool_call(self, command: ToolCall) -> str:
+    async def _execute_tool(self, command: ToolCall) -> str:
         """Execute a single tool call and return formatted result"""
         try:
             if not command.function.name:
                 raise ValueError("No command specified")
 
-            cmd_name = command.function.name
-            if cmd_name not in self.available_tools.tool_map:
-                raise ValueError(f"Command '{cmd_name}' not found")
+            name = command.function.name
+            if name not in self.available_tools.tool_map:
+                raise ValueError(f"Command '{name}' not found")
 
             args = json.loads(command.function.arguments)
-            result = await self.available_tools.execute(name=cmd_name, tool_input=args)
+            result = await self.available_tools.execute(name=name, tool_input=args)
 
             observation = (
-                f"Observed result of cmd executed:\n{result}"
+                f"Observed result of cmd executed:\n{str(result)}"
                 if result
                 else "Cmd completed with no output"
             )
-            if self._is_special_tool(name=cmd_name):
-                self.state = AgentState.FINISHED
+            await self._handle_special_tool(name=name, result=result)
 
             return observation
 
@@ -224,6 +223,19 @@ class ToolCallAgent(BaseAgent):
             raise ToolError("Invalid tool arguments format")
         except Exception as e:
             raise ToolError(f"Tool execution failed: {str(e)}")
+
+    async def _handle_special_tool(self, name: str, result: Any, **kwargs):
+        """Handle special tool execution and state changes"""
+        if not self._is_special_tool(name):
+            return
+
+        if self._should_finish_execution(name=name, result=result, **kwargs):
+            self.state = AgentState.FINISHED
+
+    @staticmethod
+    def _should_finish_execution(**kwargs) -> bool:
+        """Determine if tool execution should finish the agent"""
+        return True
 
     def _is_special_tool(self, name: str) -> bool:
         """Check if command is a special tool that affects agent state"""
