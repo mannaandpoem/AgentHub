@@ -12,7 +12,7 @@ async def main():
             if prompt.lower() == "exit":
                 logger.info("Goodbye!")
                 break
-            logger.warning("Processing your request...")
+            logger.warning("Processing your requirement...")
             await agent.run(prompt)
         except KeyboardInterrupt:
             logger.warning("Goodbye!")

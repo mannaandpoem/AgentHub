@@ -8,14 +8,13 @@ from pydantic import BaseModel, Field
 
 from app.llm import LLM
 from app.logger import logger
-from app.tool import (
-    BaseTool,
-    CreateChatCompletion,
-)
+from app.tool import BaseTool, CreateChatCompletion
+
 from .filemap import Filemap
 from .list_files import ListFiles
-from .tool_collection import ToolCollection
 from .str_replace_editor import StrReplaceEditor
+from .tool_collection import ToolCollection
+
 
 class FoundLocations:
     def __init__(self):
@@ -110,8 +109,8 @@ class FileLocalizer(BaseTool):
     location_parameters: LocationParameters = LocationParameters()
     found_locations: FoundLocations = FoundLocations()
 
-    development_requirement: str = Field(
-        default="",
+    requirement: Optional[str] = Field(
+        default=None,
         description="The development requirement or issue description to localize in the codebase.",
     )
 
@@ -126,11 +125,9 @@ class FileLocalizer(BaseTool):
                 "root_directory must be an absolute path starting with '/'"
             )
 
-        self.development_requirement = self.development_requirement or kwargs.get(
-            "development_requirement", ""
-        )
-        if not self.development_requirement:
-            raise ValueError("development_requirement must be provided")
+        self.requirement = self.requirement or kwargs.get("requirement", None)
+        if not self.requirement:
+            raise ValueError("requirement must be provided")
 
         recursive = kwargs.get("recursive", True)
         file_patterns = kwargs.get("file_patterns", ["*.py"])
@@ -185,7 +182,7 @@ class FileLocalizer(BaseTool):
 
     async def _identify_suspicious_files(self, files: List[str]) -> List[str]:
         """First LLM call to identify suspicious files."""
-        suspicious_files_prompt = f"Given the following development requirement or issue description: {self.development_requirement}\n"
+        suspicious_files_prompt = f"Given the following development requirement or issue description: {self.requirement}\n"
 
         create_chat_completion_tool = self.tool_collection.get_tool(
             "create_chat_completion"
@@ -234,7 +231,7 @@ class FileLocalizer(BaseTool):
             )
             # Prepare prompt for code snippet identification
             snippet_prompt = (
-                f"Given this issue description or development requirement: {self.development_requirement}\n"
+                f"Given this issue description or development requirement: {self.requirement}\n"
                 f"Please identify up to {max_snippets_per_file} code snippets.\n"
                 f"{file_content}"
             )
@@ -317,7 +314,7 @@ class FileLocalizer(BaseTool):
 
 async def main():
     localizer = FileLocalizer()
-    localizer.development_requirement = "division by zero"
+    localizer.requirement = "division by zero"
     results = await localizer.execute(
         root_directory="/Users/manna/PycharmProjects/Agent-Next-Web/calculator",
         recursive=True,

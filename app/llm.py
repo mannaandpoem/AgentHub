@@ -134,7 +134,7 @@ class LLM(BaseModel):
                 {"role": "system", "content": msg} for msg in system_msgs
             ] + messages
 
-        # Set up the completion request
+        # Set up the completion requirement
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,

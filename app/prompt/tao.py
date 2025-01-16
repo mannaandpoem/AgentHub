@@ -7,5 +7,4 @@ You excel at optimizing existing code, refactoring for better performance, and i
 
 NEXT_STEP_PROMPT = """Your response must include exactly _ONE_ tool/function call.
 If you need to perform an action related to code development, choose the appropriate tool from your available tools.
-To conclude the interaction, use the `terminate` tool/function call.
-"""
+To conclude the interaction, use the `terminate` tool/function call."""
