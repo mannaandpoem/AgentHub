@@ -1,7 +1,7 @@
 from openhands_aci import file_editor
 
 from app.tool.base import BaseTool
-from app.utils import parse_oh_aci_output
+from app.utils.parse_oh_aci_output import parse_oh_aci_output
 
 
 _STR_REPLACE_EDITOR_DESCRIPTION = """Custom editing tool for viewing, creating and editing files

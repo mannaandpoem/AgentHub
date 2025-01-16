@@ -36,6 +36,7 @@ class ToolResult(BaseModel):
     """Represents the result of a tool execution."""
 
     output: Optional[str] = Field(default=None)
+    error: Optional[str] = Field(default=None)
     system: Optional[str] = Field(default=None)
 
     def __bool__(self):
@@ -53,11 +54,12 @@ class ToolResult(BaseModel):
 
         return ToolResult(
             output=combine_fields(self.output, other.output),
+            error=combine_fields(self.error, other.error),
             system=combine_fields(self.system, other.system),
         )
 
     def __str__(self):
-        return self.output
+        return f"Error: {self.error}" if self.error else self.output
 
     def replace(self, **kwargs):
         """Returns a new ToolResult with the given fields replaced."""
@@ -67,11 +69,6 @@ class ToolResult(BaseModel):
 
 class CLIResult(ToolResult):
     """A ToolResult that can be rendered as a CLI output."""
-
-    error: Optional[str] = Field(default=None)
-
-    def __str__(self):
-        return f"Error: {self.error}" if self.error else self.output
 
 
 class ToolFailure(ToolResult):

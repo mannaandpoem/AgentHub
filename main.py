@@ -1,11 +1,17 @@
 import asyncio
 
-from app.agent import CodeActAgent
+from app.agent import ToolCallAgent
 from app.logger import logger
+from app.tool import Browser, Terminal, WebRead
 
 
 async def main():
-    agent = CodeActAgent()
+    agent = ToolCallAgent()
+    agent.available_tools.add_tools(
+        Terminal(),
+        Browser(),
+        WebRead(),
+    )
     while True:
         try:
             prompt = input("Enter your prompt (or 'exit' to quit): ")
