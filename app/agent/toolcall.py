@@ -70,10 +70,10 @@ class ToolCallAgent(BaseAgent):
         self.next_step_prompt = f"{stuck_prompt}\n{self.next_step_prompt}"
         logger.warning(f"Agent detected stuck state. Added prompt: {stuck_prompt}")
 
-    async def run(self, request: Optional[str] = None) -> str:
+    async def run(self, requirement: Optional[str] = None) -> str:
         """Main execution loop"""
-        if request:
-            self.update_memory("user", request)
+        if requirement:
+            self.update_memory("user", requirement)
 
         results = []
         async with self.state_context(AgentState.RUNNING):

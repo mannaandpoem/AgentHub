@@ -37,6 +37,8 @@ class TaoAgent(ToolCallAgent):
 
     max_steps: int = 30
 
+    working_dir: str = "."
+
     async def run(self, requirement: Optional[str] = None) -> str:
         """Execute development task with given or existing requirement."""
         if requirement:
@@ -47,4 +49,15 @@ class TaoAgent(ToolCallAgent):
         if not self.requirement:
             raise ValueError("No requirement provided")
 
-        return await super().run()
+        return await super().run(requirement=self.requirement)
+
+    async def think(self) -> bool:
+        """Process current state and decide next action"""
+        # Update working directory
+        terminal = self.available_tools.get_tool("execute_command")
+        self.working_dir = await terminal.execute(command="pwd")
+        self.next_step_prompt = self.next_step_prompt.format(
+            current_dir=self.working_dir
+        )
+
+        return await super().think()
