@@ -265,9 +265,6 @@ class BenchmarkRunner:
             logger.info(f"**** Starting to run {instance['instance_id']} ****")
             logger.info("User Requirement:\n" + user_requirement)
 
-            if isinstance(agent, TaoAgent):
-                file_localizer = agent.available_tools.get_tool("file_localizer")
-                file_localizer.development_requirement = user_requirement
             await agent.run(user_requirement)
             logger.info(f"**** Finished running {instance['instance_id']} ****")
 
