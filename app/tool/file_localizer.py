@@ -11,12 +11,11 @@ from app.logger import logger
 from app.tool import (
     BaseTool,
     CreateChatCompletion,
-    Filemap,
-    ListFiles,
-    StrReplaceEditor,
-    ToolCollection,
 )
-
+from .filemap import Filemap
+from .list_files import ListFiles
+from .tool_collection import ToolCollection
+from .str_replace_editor import StrReplaceEditor
 
 class FoundLocations:
     def __init__(self):
