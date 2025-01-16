@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from app.agent.base import BaseAgent
 from app.agent.toolcall import ToolCallAgent
 from app.tool import ToolCollection
 
@@ -13,7 +12,7 @@ class FlowType(str, Enum):
 
 
 class BaseFlow(ABC):
-    def __init__(self, agent: BaseAgent, tools: ToolCollection):
+    def __init__(self, agent: ToolCallAgent, tools: ToolCollection):
         self.agent = agent
         self.tools = tools
         self._setup_agent()

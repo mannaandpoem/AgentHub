@@ -132,8 +132,8 @@ class MCTSFlow(BaseFlow):
         try:
             result = await self.agent.generate(node.message)
             # Execute any tool calls if needed
-            if hasattr(self.agent, "execute_tool_calls"):
-                result = await self.agent.execute_tool_calls(result)
+            if hasattr(self.agent, "execute_tool"):
+                result = await self.agent.execute_tool(result)
 
             # Calculate reward based on the result
             reward = self._evaluate_result(result)
@@ -161,17 +161,10 @@ class MCTSFlow(BaseFlow):
 
         evaluation_prompt = [
             {
-                "role": "system",
-                "content": (
-                    "You are an expert evaluator of AI agent responses. "
-                    "Rate the response quality on a scale of 0.0 to 1.0 based on these criteria:\n"
-                    "- Relevance and accuracy (0.4 weight)\n"
-                    "- Completeness and detail (0.3 weight)\n"
-                    "- Clarity and coherence (0.3 weight)\n"
-                    "Provide only a number as output, no explanation."
-                ),
+                "role": "user",
+                "content": f"You are an expert evaluator. Rate the response quality on a scale of 0.0 to 1.0. "
+                f"Evaluate this response: {result}",
             },
-            {"role": "user", "content": f"Evaluate this response: {result}"},
         ]
 
         try:
