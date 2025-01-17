@@ -12,7 +12,8 @@ from app.tool import BaseTool, CreateChatCompletion
 
 from .filemap import Filemap
 from .list_files import ListFiles
-from .str_replace_editor import StrReplaceEditor
+# from .str_replace_editor import StrReplaceEditor
+from .oh_editor import OHEditor
 from .tool_collection import ToolCollection
 
 
@@ -20,24 +21,34 @@ class FoundLocations:
     def __init__(self):
         self.locations: Dict[str, Any] = {}
 
-    def add_location(self, file_path: str, code_snippets: dict):
+    def add_location(self, file_path: str, code_snippets: Any):
         self.locations[file_path] = code_snippets
 
     def to_string(self) -> str:
         result = []
         for file_path, snippets in self.locations.items():
-            result.append(f"File: {file_path}\nCode Snippets:\n{snippets}\n---")
+            result.append(f"Found File: {file_path}\nFound Code Snippets:\n{snippets}\n---")
         return "\n".join(result)
 
 
 class LocationParameters(BaseModel):
-    file_required: list = ["file_list"]
+    file_required: list = ["file_list", "view_ranges"]
     file_parameters: dict = {
         "type": "object",
         "properties": {
             "file_list": {
                 "type": "array",
-                "description": "(required) The list of file absolute paths (2-5 files)  that may contain the issue",
+                "description": "(required) The list of file absolute paths (1-5 files) that may contain the issue",
+            },
+            "view_ranges": {
+                "description": "Optional parameter of `view` command when `path` points to a file. If none is given, the full file is shown. If provided, the file will be shown in the indicated line number range, e.g. [11, 12] will show lines 11 and 12. Indexing at 1 to start. Setting `[start_line, -1]` shows all lines from `start_line` to the end of the file.",
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "type": "array",
             },
         },
         "required": file_required,
@@ -73,7 +84,7 @@ class LocationParameters(BaseModel):
 
 class FileLocalizer(BaseTool):
     name: str = "file_localizer"
-    description: str = "Locate suspicious files and code snippets in a codebase given an issue description or software development requirement."
+    description: str = "Locate suspicious files and code snippets in a codebase using pattern matching and regular expressions."
     parameters: Dict[str, Any] = {
         "type": "object",
         "properties": {
@@ -84,25 +95,25 @@ class FileLocalizer(BaseTool):
             "regex_pattern": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "(required) List of regular expressions to search for file contents by using Python regex syntax. Only files containing matches will be included.",
+                "description": "(required) List of fine-grained regular expressions to search for file contents by using Python regex syntax. Only files containing matches will be included.",
             },
             "file_patterns": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "List of file patterns to match (e.g., ['*.py']). If empty, defaults to Python files.",
+                "description": "(required) List of file patterns to match. Default is ['*.py']",
             },
             "exclude_patterns": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "List of patterns to exclude (e.g., ['test_*', '*_test.py'])",
+                "description": "(optional) List of patterns to exclude (e.g., ['test_*', '*_test.py'])",
             },
         },
-        "required": ["root_directory", "regex_pattern"],
+        "required": ["root_directory", "regex_pattern", "file_patterns"]
     }
 
     list_files_tool: ListFiles = Field(default_factory=ListFiles)
     filemap_tool: Filemap = Field(default_factory=Filemap)
-    editor_tool: StrReplaceEditor = Field(default_factory=StrReplaceEditor)
+    editor_tool: OHEditor = Field(default_factory=OHEditor)
     tool_collection: ToolCollection = ToolCollection(CreateChatCompletion())
     llm: LLM = Field(default_factory=LLM)
 
@@ -126,6 +137,9 @@ class FileLocalizer(BaseTool):
             )
 
         self.requirement = self.requirement or kwargs.get("requirement", None)
+        # FIXME: Temporary fix to remove XML tags from requirement
+        self.requirement = self.requirement.split("</pr_description>")[0]
+
         if not self.requirement:
             raise ValueError("requirement must be provided")
 
@@ -146,6 +160,7 @@ class FileLocalizer(BaseTool):
             raise ValueError("max_snippets_per_file must be between 1 and 3")
 
         # Step 1: List all relevant files using ListFiles tool
+        self.list_files_tool.files_limit = float('1500')
         files_result = await self.list_files_tool.execute(
             directory_path=root_dir, recursive=recursive
         )
@@ -154,11 +169,11 @@ class FileLocalizer(BaseTool):
             files_result.files, file_patterns, exclude_patterns, regex_pattern
         )
 
+        if not found_files:
+            return "No files found. Please try again with different loose patterns or specific keywords."
+
         # Step 2: First LLM call to identify suspicious files
         suspicious_files = await self._identify_suspicious_files(found_files)
-
-        # Ensure we don't exceed max_files
-        suspicious_files = suspicious_files[:max_files]
 
         # Step 3: Second LLM call to locate specific code snippets
         await self._locate_code_snippets(suspicious_files, max_snippets_per_file)
@@ -180,7 +195,7 @@ class FileLocalizer(BaseTool):
         result = await self.tool_collection.execute(name=cmd_name, tool_input=args)
         return result
 
-    async def _identify_suspicious_files(self, files: List[str]) -> List[str]:
+    async def _identify_suspicious_files(self, files: List[str]) -> dict:
         """First LLM call to identify suspicious files."""
         suspicious_files_prompt = f"Given the following development requirement or issue description: {self.requirement}\n"
 
@@ -201,16 +216,16 @@ class FileLocalizer(BaseTool):
             all_file_content.append(f"---{file_path}\n{file_content}\n")
 
         suspicious_files_prompt += (
-            "\n".join(all_file_content)
-            + "\nPlease select the files that may contain the issue."
+                "\n".join(all_file_content)
+                + "\nPlease select the files that may contain the issue."
         )
 
-        result = await self.execute_tool(suspicious_files_prompt)
-        logger.info(f"Suspicious files identified: {result}")
-        return result
+        suspicious_files = await self.execute_tool(suspicious_files_prompt)
+        logger.info(f"Suspicious files identified: {suspicious_files}")
+        return suspicious_files
 
     async def _locate_code_snippets(
-        self, suspicious_files: List[str], max_snippets_per_file: int
+            self, suspicious_files: Any, max_snippets_per_file: int
     ):
         """Second LLM call to locate specific code snippets."""
         create_chat_completion_tool = self.tool_collection.get_tool(
@@ -224,25 +239,36 @@ class FileLocalizer(BaseTool):
         create_chat_completion_tool.required = (
             self.location_parameters.code_snippet_required
         )
-        for file_path in suspicious_files:
+        file_list = suspicious_files.get("file_list", [])[:max_snippets_per_file]
+        view_ranges = suspicious_files.get("view_ranges", [])[:max_snippets_per_file]
+        for file_path, view_range in zip(file_list, view_ranges):
             # Read the file content
             file_content = await self.editor_tool.execute(
-                path=file_path, command="view"
-            )
-            # Prepare prompt for code snippet identification
-            snippet_prompt = (
-                f"Given this issue description or development requirement: {self.requirement}\n"
-                f"Please identify up to {max_snippets_per_file} code snippets.\n"
-                f"{file_content}"
+                path=file_path, command="view", view_range=view_range
             )
 
-            # Execute LLM tool to locate code snippets
-            result = await self.execute_tool(snippet_prompt)
-            # Ensure we don't exceed max_snippets_per_file
-            if isinstance(result, list):
-                result = result[:max_snippets_per_file]
-            logger.info(f"Code snippets located: \n{result}")
-            self.found_locations.add_location(file_path, result)
+            # # Prepare prompt for code snippet identification
+            # prompt = f"{self.requirement}\nPlease identify code snippets.\n{file_content}"
+            # # Execute LLM tool to locate code snippets
+            # snippet = await self.execute_tool(prompt)
+            # # Format code snippets with line numbers
+            # if isinstance(snippet, dict):
+            #     code = snippet.get('code', '')
+            #     line_start = snippet.get('line_start', 1)
+            #
+            #     # Add line numbers to code
+            #     lines = code.split('\n')
+            #     numbered_lines = []
+            #     for i, line in enumerate(lines):
+            #         line_num = line_start + i
+            #         numbered_lines.append(f"{line_num:6}\t{line}")
+            #
+            #     snippet['code'] = '\n'.join(numbered_lines)
+            #
+            # logger.info(f"Code snippets located: \n{snippet}")
+            # self.found_locations.add_location(file_path, snippet)
+
+            self.found_locations.add_location(file_path, file_content)
 
     @staticmethod
     def _is_regex_pattern(pattern: str) -> bool:
@@ -259,11 +285,11 @@ class FileLocalizer(BaseTool):
         return fnmatch.fnmatch(file_name, pattern)
 
     async def _filter_files(
-        self,
-        files: List[Union[str, Path]],
-        include_patterns: List[str],
-        exclude_patterns: List[str],
-        regex_pattern: Optional[List[str]] = None,
+            self,
+            files: List[Union[str, Path]],
+            include_patterns: List[str],
+            exclude_patterns: List[str],
+            regex_pattern: Optional[List[str]] = None,
     ) -> List[str]:
         """
         Filter files based on include and exclude patterns, and optionally content.
@@ -277,9 +303,7 @@ class FileLocalizer(BaseTool):
         filtered_files = []
 
         for file_path in files:
-            file_name = (
-                file_path.strip() if isinstance(file_path, str) else str(file_path)
-            )
+            file_name = file_path.name
             if not file_name:
                 continue
 
@@ -298,7 +322,7 @@ class FileLocalizer(BaseTool):
             if included and not excluded:
                 # If content filters are specified, check file contents
                 if regex_pattern:
-                    file_content = await self.filemap_tool.execute(file_path=file_name)
+                    file_content = file_path.read_text()
                     content_matched = False
                     for pattern in regex_pattern:
                         if re.search(pattern, file_content):
@@ -307,7 +331,7 @@ class FileLocalizer(BaseTool):
                     if not content_matched:
                         continue
 
-                filtered_files.append(file_name)
+                filtered_files.append(file_path)
 
         return filtered_files
 

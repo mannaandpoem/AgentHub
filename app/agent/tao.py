@@ -7,11 +7,12 @@ from app.prompt.tao import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import (
     CodeReview,
     FileLocalizer,
-    StrReplaceEditor,
+    # StrReplaceEditor,
     Terminal,
     Terminate,
     ToolCollection,
 )
+from app.tool.oh_editor import OHEditor
 
 
 class TaoAgent(ToolCallAgent):
@@ -29,7 +30,7 @@ class TaoAgent(ToolCallAgent):
 
     available_tools: ToolCollection = ToolCollection(
         Terminal(),
-        StrReplaceEditor(),
+        OHEditor(),
         FileLocalizer(requirement=requirement),
         CodeReview(),
         Terminate(),

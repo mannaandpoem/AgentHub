@@ -99,23 +99,23 @@ class StrReplaceEditor(BaseTool):
         new_str: str | None = None,
         insert_line: int | None = None,
         **kwargs,
-    ):
+    ) -> str:
         _path = Path(path)
         self.validate_path(command, _path)
         if command == "view":
-            return await self.view(_path, view_range)
+            result = await self.view(_path, view_range)
         elif command == "create":
             if file_text is None:
                 raise ToolError("Parameter `file_text` is required for command: create")
             self.write_file(_path, file_text)
             self._file_history[_path].append(file_text)
-            return ToolResult(output=f"File created successfully at: {_path}")
+            result = ToolResult(output=f"File created successfully at: {_path}")
         elif command == "str_replace":
             if old_str is None:
                 raise ToolError(
                     "Parameter `old_str` is required for command: str_replace"
                 )
-            return self.str_replace(_path, old_str, new_str)
+            result = self.str_replace(_path, old_str, new_str)
         elif command == "insert":
             if insert_line is None:
                 raise ToolError(
@@ -123,12 +123,14 @@ class StrReplaceEditor(BaseTool):
                 )
             if new_str is None:
                 raise ToolError("Parameter `new_str` is required for command: insert")
-            return self.insert(_path, insert_line, new_str)
+            result = self.insert(_path, insert_line, new_str)
         elif command == "undo_edit":
-            return self.undo_edit(_path)
-        raise ToolError(
-            f'Unrecognized command {command}. The allowed commands for the {self.name} tool are: {", ".join(get_args(Command))}'
-        )
+            result = self.undo_edit(_path)
+        else:
+            raise ToolError(
+                f'Unrecognized command {command}. The allowed commands for the {self.name} tool are: {", ".join(get_args(Command))}'
+            )
+        return str(result)
 
     def validate_path(self, command: str, path: Path):
         """

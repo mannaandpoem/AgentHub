@@ -37,7 +37,7 @@ class ListFilesResult(ToolResult):
         # Format output
         output = "\n".join(f"- {path}" for path in paths)
         if self.limit_reached:
-            output += f"\n\nNote: File limit ({FILES_LIMIT}) reached. Some files may not be shown."
+            output += f"\n\nNote: File limit reached. Some files may not be shown."
 
         return output
 
@@ -64,6 +64,8 @@ class ListFiles(BaseTool):
         },
         "required": ["directory_path", "recursive"],
     }
+
+    files_limit: int = FILES_LIMIT
 
     @staticmethod
     def is_root_or_home(dir_path: Path) -> bool:
@@ -112,7 +114,7 @@ class ListFiles(BaseTool):
             "pkg",
         }
 
-        while queue and len(results) < FILES_LIMIT:
+        while queue and len(results) < self.files_limit:
             # Check timeout
             if time.time() - start_time > TIMEOUT_SECONDS:
                 result = ListFilesResult(files=results, limit_reached=True)
@@ -126,7 +128,7 @@ class ListFiles(BaseTool):
 
             try:
                 for entry in os.scandir(current_dir):
-                    if len(results) >= FILES_LIMIT:
+                    if len(results) >= self.files_limit:
                         result = ListFilesResult(files=results, limit_reached=True)
                         return result.replace(
                             output=result.to_string(relative_to=dir_path)
@@ -152,6 +154,6 @@ class ListFiles(BaseTool):
                 continue
 
         result = ListFilesResult(
-            files=results, limit_reached=len(results) >= FILES_LIMIT
+            files=results, limit_reached=len(results) >= self.files_limit
         )
         return result.replace(output=result.to_string(relative_to=dir_path))

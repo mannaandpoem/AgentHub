@@ -39,6 +39,9 @@ class ToolResult(BaseModel):
     error: Optional[str] = Field(default=None)
     system: Optional[str] = Field(default=None)
 
+    class Config:
+        arbitrary_types_allowed = True
+
     def __bool__(self):
         return any(getattr(self, field) for field in self.__fields__)
 

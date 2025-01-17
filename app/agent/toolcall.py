@@ -193,30 +193,24 @@ class ToolCallAgent(BaseAgent):
 
     async def execute_tool(self, command: ToolCall) -> str:
         """Execute a single tool call and return formatted result"""
-        try:
-            if not command.function.name:
-                raise ValueError("No command specified")
+        if not command.function.name:
+            raise ValueError("No command specified")
 
-            name = command.function.name
-            if name not in self.available_tools.tool_map:
-                raise ValueError(f"Command '{name}' not found")
+        name = command.function.name
+        if name not in self.available_tools.tool_map:
+            raise ValueError(f"Command '{name}' not found")
 
-            args = json.loads(command.function.arguments)
-            result = await self.available_tools.execute(name=name, tool_input=args)
+        args = json.loads(command.function.arguments)
+        result = await self.available_tools.execute(name=name, tool_input=args)
 
-            observation = (
-                f"Observed output of cmd `{name}` executed:\n{str(result)}"
-                if result
-                else "Cmd completed with no output"
-            )
-            await self._handle_special_tool(name=name, result=result)
+        observation = (
+            f"Observed output of cmd `{name}` executed:\n{str(result)}"
+            if result
+            else "Cmd completed with no output"
+        )
+        await self._handle_special_tool(name=name, result=result)
 
-            return observation
-
-        except json.JSONDecodeError:
-            raise ToolError("Invalid tool arguments format")
-        except Exception as e:
-            raise ToolError(f"Tool execution failed: {str(e)}")
+        return observation
 
     async def _handle_special_tool(self, name: str, result: Any, **kwargs):
         """Handle special tool execution and state changes"""

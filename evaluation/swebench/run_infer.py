@@ -156,7 +156,7 @@ class RepositoryManager:
         """Execute a command in terminal and return output"""
         output = await self.terminal.execute(cmd)
         logger.info(f"Command: {cmd}\nOutput:\n{output}")
-        return output
+        return str(output)
 
 
 class BenchmarkRunner:
