@@ -110,6 +110,7 @@ class ToolCallAgent(BaseAgent):
         if not self.fixed_tools:
             return ""
 
+        # FIXME: Implement fixed tool execution
         # Execute all tools sequentially
         results = await self.fixed_tools.execute_all()
 
