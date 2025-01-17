@@ -51,7 +51,7 @@ class ToolResult(BaseModel):
 
     def __add__(self, other: "ToolResult"):
         def combine_fields(
-                field: Optional[str], other_field: Optional[str], concatenate: bool = True
+            field: Optional[str], other_field: Optional[str], concatenate: bool = True
         ):
             if field and other_field:
                 if concatenate:
