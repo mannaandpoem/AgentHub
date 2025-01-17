@@ -1,55 +1,39 @@
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict
 
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from app.config import LLMSettings, config
 
 
-class LLM(BaseModel):
-    config: LLMSettings = Field(...)
-    model: str = Field(...)
-    api_key: str = Field(...)
-    base_url: Optional[str] = Field(None)
-    max_tokens: int = Field(1000)
-    temperature: float = Field(0.7)
-    client: Optional[AsyncOpenAI] = None
+class LLM:
+    _instances: Dict[str, "LLM"] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
+    def __new__(cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None):
+        if config_name not in cls._instances:
+            instance = super().__new__(cls)
+            instance.__init__(config_name, llm_config)
+            cls._instances[config_name] = instance
+        return cls._instances[config_name]
 
-    def __init__(
-        self,
-        config_name: str = "default",
-        llm_config: Optional[LLMSettings] = None,
-        **data,
-    ):
-        llm_config = llm_config or config.llm
-        llm_config = llm_config.get(config_name, llm_config["default"])
-
-        client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
-
-        super().__init__(
-            config=llm_config,
-            model=llm_config.model,
-            api_key=llm_config.api_key,
-            base_url=llm_config.base_url,
-            max_tokens=llm_config.max_tokens,
-            temperature=llm_config.temperature,
-            client=client,
-            **data,
-        )
+    def __init__(self, config_name: str = "default", llm_config: Optional[LLMSettings] = None):
+        if not hasattr(self, 'client'):  # Only initialize if not already initialized
+            llm_config = llm_config or config.llm
+            llm_config = llm_config.get(config_name, llm_config["default"])
+            self.model = llm_config.model
+            self.max_tokens = llm_config.max_tokens
+            self.temperature = llm_config.temperature
+            self.client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
     )
     async def ask(
-        self,
-        messages: List[dict],
-        system_msgs: Optional[str] = None,
-        stream: bool = True,
+            self,
+            messages: List[dict],
+            system_msgs: Optional[str] = None,
+            stream: bool = True,
     ) -> str:
         """
         Send a prompt to the LLM and get the response.
@@ -86,13 +70,11 @@ class LLM(BaseModel):
             stream=True,
         )
 
-        collected_chunks = []
         collected_messages = []
 
         async for chunk in response:
             # Collect each streaming chunk
-            collected_chunks.append(chunk)
-            chunk_message = chunk["choices"][0].get("delta", {}).get("content", "")
+            chunk_message = chunk.choices[0].delta.content or ""
             collected_messages.append(chunk_message)
 
             # Optionally print the chunk to the console
@@ -152,8 +134,8 @@ class LLM(BaseModel):
 
 async def main():
     llm = LLM()
-    response = llm.ask(
-        messages=[{"role": "user", "content": "What is the weather today?"}]
+    response = await llm.ask(
+        messages=[{"role": "user", "content": "What is the weather today?"}], stream=False
     )
     print(response)
     tools = [

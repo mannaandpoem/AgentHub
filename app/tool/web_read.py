@@ -5,7 +5,7 @@ import html2text
 from pydantic import model_validator
 
 from app.tool.base import BaseTool
-from app.tool.browser import Browser, BrowserResult
+from app.tool.browser import Browser, BrowserOutput
 
 
 WEB_READ_DESCRIPTION = """Read (convert to markdown) content from a webpage. You should prefer using the `webpage_read` tool over the `browser` tool, but do use the `browser` tool if you need to interact with a webpage (e.g., click a button, fill out a form, etc.).
@@ -45,7 +45,7 @@ class WebRead(BaseTool):
             self.html_converter.body_width = 0
         return self
 
-    async def execute(self, url: str, wait_time: int = 1000) -> BrowserResult:
+    async def execute(self, url: str, wait_time: int = 1000) -> BrowserOutput:
         """Read and convert webpage content to markdown format"""
         try:
             # Normalize URL
@@ -63,7 +63,7 @@ class WebRead(BaseTool):
             return result
 
         except Exception as e:
-            return BrowserResult(error=f"Failed to read webpage: {str(e)}", url=url)
+            return BrowserOutput(error=f"Failed to read webpage: {str(e)}", url=url)
 
     def close(self):
         """Close the browser tool."""

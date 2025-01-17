@@ -110,6 +110,7 @@ class ToolCallAgent(BaseAgent):
         if not self.fixed_tools:
             return ""
 
+        # FIXME: Implement fixed tool execution
         # Execute all tools sequentially
         results = await self.fixed_tools.execute_all()
 
@@ -204,7 +205,7 @@ class ToolCallAgent(BaseAgent):
             result = await self.available_tools.execute(name=name, tool_input=args)
 
             observation = (
-                f"Observed result of cmd executed:\n{str(result)}"
+                f"Observed output of cmd `{name}` executed:\n{str(result)}"
                 if result
                 else "Cmd completed with no output"
             )

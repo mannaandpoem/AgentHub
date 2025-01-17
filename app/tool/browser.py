@@ -141,7 +141,7 @@ for _, action in _browser_action_space.action_set.items():
     ), f"Browser description mismatch. Please double check if the BrowserGym updated their action space.\n\nAction: {action.description}"
 
 
-class BrowserResult(ToolResult):
+class BrowserOutput(ToolResult):
     output: Optional[str] = Field(default=None)
     error: Optional[str] = Field(default=None)
 
@@ -173,7 +173,7 @@ class BrowserResult(ToolResult):
 
     def __str__(self) -> str:
         ret = (
-            "**BrowserOutputObservation**\n"
+            "**Browser Output**\n"
             f"URL: {self.url}\n"
             f"Error: {self.error}\n"
             f"Open pages: {self.open_pages_urls}\n"
@@ -278,7 +278,7 @@ class Browser(BaseTool):
                 )
         return self
 
-    async def execute(self, code: str) -> BrowserResult:
+    async def execute(self, code: str) -> BrowserOutput:
         """Execute browser actions with improved error handling and state management"""
         async with self.lock:
             try:
@@ -289,7 +289,7 @@ class Browser(BaseTool):
                 obs = self.browser.step(code)
 
                 # Create enhanced observation
-                result = BrowserResult(
+                result = BrowserOutput(
                     output=obs.get("text_content", ""),
                     error=obs.get("last_action_error"),
                     url=obs.get("url", ""),
@@ -321,7 +321,7 @@ class Browser(BaseTool):
                 return result
 
             except Exception as e:
-                return BrowserResult(error=f"Browser execution failed: {str(e)}")
+                return BrowserOutput(error=f"Browser execution failed: {str(e)}")
 
     def close(self):
         """Clean up browser resources"""

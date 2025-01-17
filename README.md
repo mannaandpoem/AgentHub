@@ -1,4 +1,4 @@
-# Agent-Next-Web
+# AgentHub
 
 A simple web interface for interacting with AI agents' code generation capabilities. This project draws inspiration from two excellent projects: [SWEAgent](https://github.com/SWE-agent/SWE-agent) and [OpenHands](https://github.com/All-Hands-AI/OpenHands)
 
@@ -15,8 +15,8 @@ A simple web interface for interacting with AI agents' code generation capabilit
 
 2. Clone the repository
    ```sh
-   git clone https://github.com/mannaandpoem/Agent-Next-Web.git
-   cd Agent-Next-Web
+   git clone https://github.com/mannaandpoem/AgentHub.git
+   cd AgentHub
    ```
 
 3. Install requirements
