@@ -7,15 +7,12 @@ from app.exceptions import ToolError
 from app.tool.base import BaseTool, ToolFailure, ToolResult
 
 
-class ToolCollection(BaseModel):
+class ToolCollection:
     """A collection of defined tools."""
 
-    tools: Tuple[BaseTool, ...]
-    tool_map: Dict[str, BaseTool]
-
     def __init__(self, *tools: BaseTool):
-        tool_map = {tool.name: tool for tool in tools}
-        super().__init__(tools=tools, tool_map=tool_map)
+        self.tools = tools
+        self.tool_map = {tool.name: tool for tool in tools}
 
     def __iter__(self):
         return iter(self.tools)
