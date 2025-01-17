@@ -16,7 +16,7 @@ from app.tool import (
 
 class TaoAgent(ToolCallAgent):
     """
-    An agent that embodies the principles of refined software craftsmanship, adept at incremental development tasks.
+    An agent that embodies the principles of developing and refining software craftsmanship.
     """
 
     name: str = "tao"
