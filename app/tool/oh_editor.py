@@ -38,7 +38,7 @@ def parse_oh_aci_output(tool_output, return_string=True):
 
 
 class OHEditor(BaseTool):
-    name: str = "oh_editor"
+    name: str = "str_replace_editor"
     description: str = _STR_REPLACE_EDITOR_DESCRIPTION
     parameters: dict = {
         "type": "object",
