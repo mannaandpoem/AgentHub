@@ -88,19 +88,19 @@ class FileLocalizer(BaseTool):
     parameters: Dict[str, Any] = {
         "type": "object",
         "properties": {
-            "root_directory": {
+            "directory_path": {
                 "type": "string",
-                "description": "(required) The absolute path of the root directory to start the search from. Must start with '/'.",
+                "description": "(required) The absolute path of the specified directory to start the search from. Must start with '/'.",
             },
-            "regex_pattern": {
+            "content_pattern": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "(required) List of fine-grained regular expressions to search for file contents by using Python regex syntax. Only files containing matches will be included.",
+                "description": "(optional) List of fine-grained regular expressions to search for file contents by using Python regex syntax. Only files containing matches will be included.",
             },
             "file_patterns": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "(required) List of file patterns to match. Default is ['*.py']",
+                "description": "(optional) List of file patterns to match. Default is ['*.py']",
             },
             "exclude_patterns": {
                 "type": "array",
@@ -108,7 +108,7 @@ class FileLocalizer(BaseTool):
                 "description": "(optional) List of patterns to exclude (e.g., ['test_*', '*_test.py'])",
             },
         },
-        "required": ["root_directory", "regex_pattern", "file_patterns"]
+        "required": ["directory_path"]
     }
 
     list_files_tool: ListFiles = Field(default_factory=ListFiles)
@@ -130,10 +130,10 @@ class FileLocalizer(BaseTool):
         Execute the localization process and return found locations with code snippets.
         """
         # Validate root directory is absolute
-        root_dir = kwargs["root_directory"]
+        root_dir = kwargs["directory_path"]
         if not root_dir.startswith("/"):
             raise ValueError(
-                "root_directory must be an absolute path starting with '/'"
+                "directory_path must be an absolute path starting with '/'"
             )
 
         self.requirement = self.requirement or kwargs.get("requirement", None)
@@ -146,7 +146,7 @@ class FileLocalizer(BaseTool):
         recursive = kwargs.get("recursive", True)
         file_patterns = kwargs.get("file_patterns", ["*.py"])
         exclude_patterns = kwargs.get("exclude_patterns", [])
-        regex_pattern = kwargs.get("regex_pattern", [])
+        content_pattern = kwargs.get("content_pattern", [])
 
         max_files = kwargs.get("max_files", self.location_parameters.max_files)
         max_snippets_per_file = kwargs.get(
@@ -160,13 +160,13 @@ class FileLocalizer(BaseTool):
             raise ValueError("max_snippets_per_file must be between 1 and 3")
 
         # Step 1: List all relevant files using ListFiles tool
-        self.list_files_tool.files_limit = float('1500')
+        self.list_files_tool.files_limit = float("inf")
         files_result = await self.list_files_tool.execute(
             directory_path=root_dir, recursive=recursive
         )
 
         found_files = await self._filter_files(
-            files_result.files, file_patterns, exclude_patterns, regex_pattern
+            files_result.files, file_patterns, exclude_patterns, content_pattern
         )
 
         if not found_files:
@@ -279,8 +279,9 @@ class FileLocalizer(BaseTool):
     def _matches_pattern(file_name: str, pattern: str) -> bool:
         """Check if file_name matches the pattern (either glob or regex)."""
         if FileLocalizer._is_regex_pattern(pattern):
-            # Remove the 'regex:' prefix and compile the pattern
-            regex_pattern = re.compile(pattern[6:])
+            if not pattern.startswith("regex:"):
+                raise ValueError("Regex pattern must start with 'regex:'")
+            regex_pattern = re.compile(pattern.removeprefix("regex:"))
             return bool(regex_pattern.match(file_name))
         return fnmatch.fnmatch(file_name, pattern)
 
@@ -289,7 +290,7 @@ class FileLocalizer(BaseTool):
             files: List[Union[str, Path]],
             include_patterns: List[str],
             exclude_patterns: List[str],
-            regex_pattern: Optional[List[str]] = None,
+            content_pattern: Optional[List[str]] = None,
     ) -> List[str]:
         """
         Filter files based on include and exclude patterns, and optionally content.
@@ -298,7 +299,7 @@ class FileLocalizer(BaseTool):
             files: List of file paths
             include_patterns: List of patterns to include (glob or regex)
             exclude_patterns: List of patterns to exclude (glob or regex)
-            regex_pattern: List of regex patterns to filter file contents
+            content_pattern: List of regex patterns to filter file contents
         """
         filtered_files = []
 
@@ -321,10 +322,10 @@ class FileLocalizer(BaseTool):
 
             if included and not excluded:
                 # If content filters are specified, check file contents
-                if regex_pattern:
+                if content_pattern:
                     file_content = file_path.read_text()
                     content_matched = False
-                    for pattern in regex_pattern:
+                    for pattern in content_pattern:
                         if re.search(pattern, file_content):
                             content_matched = True
                             break
@@ -340,11 +341,11 @@ async def main():
     localizer = FileLocalizer()
     localizer.requirement = "division by zero"
     results = await localizer.execute(
-        root_directory="/Users/manna/PycharmProjects/Agent-Next-Web/calculator",
+        directory_path="/Users/manna/PycharmProjects/Agent-Next-Web/calculator",
         recursive=True,
         file_patterns=["*.py"],
         exclude_patterns=["test_*.py", "*_test.py"],
-        regex_pattern=[
+        content_pattern=[
             r"divide|division",
             r"def\s+calculate",
         ],
