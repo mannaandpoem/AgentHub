@@ -20,7 +20,7 @@ class ListFilesResult(ToolResult):
     limit_reached: bool = Field(default=False)
 
     def to_string(self, relative_to: Optional[Path] = None) -> str:
-        """Convert the file list to a formatted string.
+        """Convert the file list to a tree-structured string.
 
         Args:
             relative_to: Optional path to make all paths relative to
@@ -30,12 +30,38 @@ class ListFilesResult(ToolResult):
 
         # Convert paths to relative if base path provided
         paths = [
-            str(f.relative_to(relative_to) if relative_to else f)
+            f.relative_to(relative_to) if relative_to else f
             for f in sorted(self.files)
         ]
 
+        # Build tree structure
+        tree = {}
+        for path in paths:
+            current = tree
+            for part in path.parts:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+
         # Format output
-        output = "\n".join(f"- {path}" for path in paths)
+        def format_tree(tree, indent="", is_last=True):
+            lines = []
+            items = list(tree.items())
+
+            for i, (name, subtree) in enumerate(items):
+                is_last_item = i == len(items) - 1
+                prefix = indent + ("    " if is_last else "    ")
+
+                if subtree:  # It's a directory
+                    lines.append(f"{indent}{name}/")
+                    lines.extend(format_tree(subtree, prefix, is_last_item))
+                else:  # It's a file
+                    lines.append(f"{indent}{name}")
+
+            return lines
+
+        output = "\n".join(format_tree(tree))
+
         if self.limit_reached:
             output += f"\n\nNote: File limit reached. Some files may not be shown."
 
