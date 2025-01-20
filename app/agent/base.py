@@ -26,11 +26,6 @@ class BaseAgent(BaseModel, ABC):
     max_steps: int = 10
     current_step: int = 0
 
-    # Memory management settings
-    max_memory_messages: int = 100
-    memory_summary_threshold: int = 50
-    auto_summarize: bool = True
-
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"
@@ -52,38 +47,6 @@ class BaseAgent(BaseModel, ABC):
         finally:
             self.state = previous_state
 
-    @abstractmethod
-    async def think(self) -> bool:
-        """Process current state and decide next action"""
-
-    @abstractmethod
-    async def act(self) -> str:
-        """Execute decided actions"""
-
-    async def _summarize_memory(self) -> None:
-        """Summarize conversation history"""
-        try:
-            if not self.memory.messages:
-                return
-
-            summary_prompt = "Please summarize the key points of this conversation:"
-            messages_text = "\n".join(
-                f"{m['role']}: {m['content']}" for m in self.memory.messages
-            )
-
-            summary = await self.llm.aask(f"{summary_prompt}\n\n{messages_text}")
-
-            self.memory.messages = [
-                {
-                    "role": "system",
-                    "content": f"Previous conversation summary: {summary}",
-                }
-            ]
-            logger.info("Memory summarized successfully")
-
-        except Exception as e:
-            logger.error(f"Error summarizing memory: {str(e)}")
-
     def update_memory(self, role: str, content: str, **kwargs) -> None:
         """Update memory with new message"""
         if role == "user":
@@ -99,48 +62,7 @@ class BaseAgent(BaseModel, ABC):
 
         self.memory.add_message(msg)
 
-    def reflect(self, result: Any) -> bool:
-        """Evaluate results and determine if task is complete"""
-
-    def plan(self, objective: str) -> List[str]:
-        """Decompose objective into a sequential list of subtasks."""
-
+    @abstractmethod
     async def run(self, request: Optional[str] = None) -> str:
         """Main execution loop"""
-        if request:
-            self.update_memory("user", request)
-
-        results = []
-        async with self.state_context(AgentState.RUNNING):
-            while self.current_step < self.max_steps:
-                self.current_step += 1
-
-                try:
-                    # Think phase
-                    should_act = await self.think()
-                    if not should_act:
-                        results.append("Thinking complete - no action needed")
-                        break
-
-                    # Act phase
-                    result = await self.act()
-                    step_result = f"Step {self.current_step}: {result}"
-                    results.append(step_result)
-
-                    if self.state == AgentState.FINISHED:
-                        break
-
-                except Exception as e:
-                    error_msg = f"Error in step {self.current_step}: {str(e)}"
-                    logger.error(error_msg)
-                    self.update_memory("assistant", f"Error: {error_msg}")
-
-                    results.append(error_msg)
-                    break
-
-                await asyncio.sleep(0)
-
-            if self.current_step >= self.max_steps:
-                results.append(f"Reached maximum steps limit ({self.max_steps})")
-
-        return "\n".join(results)
+        pass

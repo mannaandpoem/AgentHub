@@ -4,8 +4,7 @@ from typing import Any, List, Literal, Optional
 
 from pydantic import Field, model_validator
 
-from app.agent.base import BaseAgent
-from app.exceptions import ToolError
+from app.agent.react import ReActAgent
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
@@ -13,7 +12,7 @@ from app.tool import CreateChatCompletion, Terminate, ToolCollection
 from app.tool.base import AgentAwareTool
 
 
-class ToolCallAgent(BaseAgent):
+class ToolCallAgent(ReActAgent):
     """Base agent class for handling tool/function calls with enhanced abstraction"""
 
     name: str = "toolcall"
@@ -100,8 +99,6 @@ class ToolCallAgent(BaseAgent):
 
                 if self.state == AgentState.FINISHED:
                     break
-
-                await asyncio.sleep(0)
 
             return "\n".join(results)
 
