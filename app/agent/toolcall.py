@@ -72,7 +72,8 @@ class ToolCallAgent(ReActAgent):
     async def run(self, requirement: Optional[str] = None) -> str:
         """Main execution loop"""
         if requirement:
-            self.update_memory("user", requirement)
+            # Put user message at the top of the memory
+            self.memory.messages.insert(0, Message.user_message(requirement))
 
         results = []
         async with self.state_context(AgentState.RUNNING):

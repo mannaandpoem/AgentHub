@@ -70,7 +70,7 @@ class Message(BaseModel):
 
     @classmethod
     def from_tool_calls(
-        cls, tool_calls: List[Any], content: Union[str, List[str]] = "", **kwargs
+            cls, tool_calls: List[Any], content: Union[str, List[str]] = "", **kwargs
     ):
         """Create ToolCallsMessage from raw tool calls.
 
@@ -96,7 +96,7 @@ class Memory(BaseModel):
         self.messages.append(message)
         # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages :]
+            self.messages = self.messages[-self.max_messages:]
 
     def clear(self) -> None:
         """Clear all messages"""
