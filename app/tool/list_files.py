@@ -71,11 +71,11 @@ class ListFilesResult(ToolResult):
 class ListFiles(BaseTool):
     name: str = "list_files"
     description: str = """
-    List files and directories within the specified directory.
-    If recursive is true, it will list all files and directories recursively.
-    If recursive is false, it will only list the top-level contents.
-    Do not use this tool to confirm the existence of files you may have created.
-    """
+List files and directories within the specified directory.
+If recursive is true, it will list all files and directories recursively.
+If recursive is false, it will only list the top-level contents.
+Do not use this tool to confirm the existence of files you may have created.
+"""
     parameters: dict = {
         "type": "object",
         "properties": {

@@ -5,5 +5,5 @@ SYSTEM_PROMPT = """You are OpenHands agent, a helpful AI assistant that can inte
 * The assistant MUST NOT include comments in the code unless they are necessary to describe non-obvious behavior.
 </IMPORTANT>"""
 
-NEXT_STEP_PROMPT = """Your response must include exactly _ONE_ tool/function call.
+NEXT_STEP_PROMPT = """Your response must include tool/function call.
 If you want to stop interaction, use `finish` tool/function call."""

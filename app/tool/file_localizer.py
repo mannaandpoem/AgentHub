@@ -105,7 +105,7 @@ class FileLocalizer(BaseTool):
             "exclude_patterns": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "(optional) List of patterns to exclude (e.g., ['test_*', '*_test.py'])",
+                "description": "(optional) List of patterns to exclude",
             },
         },
         "required": ["directory_path"]
@@ -145,8 +145,27 @@ class FileLocalizer(BaseTool):
 
         recursive = kwargs.get("recursive", True)
         file_patterns = kwargs.get("file_patterns", ["*.py"])
-        exclude_patterns = kwargs.get("exclude_patterns", [])
         content_pattern = kwargs.get("content_pattern", [])
+        exclude_patterns = kwargs.get("exclude_patterns", [])
+        # Add common documentation files and folders to exclude patterns
+        default_exclude_patterns = [
+            "*.md",  # Markdown files
+            "*.txt",  # Text files
+            "*.json",  # JSON files
+            "*.yaml",  # YAML files
+            "*.yml",  # YAML files
+            "README.*",  # README files
+            "LICENSE",  # License files
+            "CHANGELOG.*",  # Changelog files
+            "docs/*",  # Documentation folders
+            "documentation/*",
+            "guide/*",
+            "examples/*",  # Example folders
+            "tutorial/*",  # Tutorial folders
+        ]
+
+        # Merge user-provided exclude patterns with default ones
+        exclude_patterns += default_exclude_patterns
 
         max_files = kwargs.get("max_files", self.location_parameters.max_files)
         max_snippets_per_file = kwargs.get(
@@ -170,7 +189,21 @@ class FileLocalizer(BaseTool):
         )
 
         if not found_files:
-            return "No files found. Please try again with different loose patterns or specific keywords."
+            # Helper function to check if a file matches exclude patterns
+            def is_excluded(file, exclude_patterns):
+                from fnmatch import fnmatch
+                for pattern in exclude_patterns:
+                    if fnmatch(str(file), pattern):  # Match file name or path
+                        return True
+                return False
+
+            # Filter Python files with exclude patterns
+            found_python_files = [
+                file for file in files_result.files
+                if file.suffix == ".py" and not is_excluded(file, exclude_patterns)
+            ]
+
+            llm_
 
         # Step 2: First LLM call to identify suspicious files
         suspicious_files = await self._identify_suspicious_files(found_files)

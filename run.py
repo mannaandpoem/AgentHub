@@ -32,7 +32,7 @@ def get_tool_class(tool_name: str) -> Type[BaseTool]:
         "terminal": Terminal,
         "python_execute": PythonExecute,
         "create_chat_completion": CreateChatCompletion,
-        "attempt_completion_client_request": AttemptCompletionClientRequest,
+        "attempt_completion_client_request": AttemptCompletion,
     }
 
     tool_class = tool_classes.get(tool_name.lower())

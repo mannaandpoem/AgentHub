@@ -5,12 +5,9 @@ from pydantic import Field
 from app.agent.toolcall import ToolCallAgent
 from app.prompt.tao import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import (
-    CodeReview,
     FileLocalizer,
-    # StrReplaceEditor,
-    Terminal,
     Terminate,
-    ToolCollection,
+    ToolCollection, Bash,
 )
 from app.tool.oh_editor import OHEditor
 
@@ -29,14 +26,13 @@ class TaoAgent(ToolCallAgent):
     requirement: Optional[str] = None
 
     available_tools: ToolCollection = ToolCollection(
-        Terminal(),
+        Bash(),
         OHEditor(),
         FileLocalizer(requirement=requirement),
-        CodeReview(),
         Terminate(),
     )
     special_tool_names: List[str] = Field(
-        default_factory=lambda: [Terminate().name, CodeReview().name]
+        default_factory=lambda: [Terminate().name]
     )
 
     max_steps: int = 30

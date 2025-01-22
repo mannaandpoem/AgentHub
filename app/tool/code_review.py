@@ -8,45 +8,76 @@ class CodeReviewResult(ToolResult):
     comments: str = ""
 
     def __str__(self):
-        return f"Code review status: {self.status}\n{self.comments}".strip()
+        if self.status == "LGTM":
+            return "Code Review Status: APPROVED (LGTM)"
+        return f"Code Review Status: REJECTED (LBTM)\n\nIssues Found:\n{self.comments}".strip()
 
 
 class CodeReview(BaseTool):
     name: str = "code_review"
-    description: str = """Reviews code changes against development requirements and best practices.
-    Provides final validation with clear pass/fail feedback."""
+    description: str = """Comprehensive code review against engineering excellence standards. 
+    Provides clear pass/fail decision with detailed technical feedback.
+
+    Code Review Guidelines:
+    1. Correctness & Functionality:
+       - Verify logical correctness and edge case handling
+       - Check for bugs, race conditions, and resource leaks
+       - Validate input/output behavior matches specifications
+
+    2. Readability & Maintainability:
+       - Enforce coding standards and style consistency
+       - Assess naming clarity and code organization
+       - Verify proper use of language idioms and patterns
+
+    3. Security & Performance:
+       - Identify security vulnerabilities (e.g., injections, XSS)
+       - Validate proper error handling and resource cleanup
+       - Optimize algorithms and data structure choices
+
+    4. Testing & Documentation:
+       - Ensure adequate test coverage and validation
+       - Verify documentation matches implementation
+       - Check for proper logging and monitoring
+
+    5. Architectural Compliance:
+       - Maintain consistency with system architecture
+       - Follow separation of concerns principles
+       - Adhere to organizational technical strategy
+
+    LGTM requires full compliance; LBTM for any critical issues."""
 
     parameters: Dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {
                 "type": "string",
-                "description": "Review status - LGTM (Looks Good To Me) for pass, LBTM (Looks Bad To Me) for fail",
+                "description": "Final review verdict - LGTM (Looks Good To Me) or LBTM (Looks Bad To Me)",
                 "enum": ["LGTM", "LBTM"],
             },
             "comments": {
                 "type": "string",
-                "description": "Review comments, must be non-empty if status is LBTM, should be empty if LGTM",
+                "description": "Specific technical feedback listing guideline violations (required for LBTM). "
+                               "Must be empty for LGTM. Format as bullet points.",
             },
         },
         "required": ["status", "comments"],
     }
 
     async def execute(self, **kwargs) -> CodeReviewResult:
-        """
-        Execute the review decision.
-        Simply returns the LLM's review decision in a standardized format.
-        """
+        """Execute the review decision with quality enforcement"""
         status = kwargs.get("status")
-        comments = kwargs.get("comments", "")
+        comments = kwargs.get("comments", "").strip()
 
         if status not in ["LGTM", "LBTM"]:
-            raise ValueError("Status must be either LGTM or LBTM")
+            raise ValueError("Invalid status - must be LGTM or LBTM")
 
-        if status == "LBTM" and not comments.strip():
-            raise ValueError("Comments are required when status is LBTM")
-
-        if status == "LGTM" and comments.strip():
-            comments = ""  # Clear comments for LGTM status
+        if status == "LBTM":
+            if not comments:
+                raise ValueError("Detailed comments required for LBTM status")
+            # Format comments as bullet points
+            comments = "- " + "\n- ".join(line.strip() for line in comments.split("\n") if line.strip())
+        else:
+            if comments:
+                comments = ""  # Enforce empty comments for LGTM
 
         return CodeReviewResult(status=status, comments=comments)

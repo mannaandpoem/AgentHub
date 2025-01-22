@@ -1,4 +1,4 @@
-from app.tool.attempt_completion_client_request import AttemptCompletionClientRequest
+from app.tool.attempt_completion_client_request import AttemptCompletion
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
 from app.tool.browser import Browser
@@ -21,7 +21,7 @@ from app.tool.web_read import WebRead
 
 __all__ = [
     "BaseTool",
-    "AttemptCompletionClientRequest",
+    "AttemptCompletion",
     "Bash",
     "CodeReview",
     "FileLocalizer",

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from app.agent import TaoAgent
+from app.agent.code_alchemist import CodeAlchemistAgent
 from app.agent.codeact import CodeActAgent
 from app.agent.midwit import MidwitAgent
 from app.agent.swe import SWEAgent
@@ -62,6 +63,7 @@ class DatasetConfig:
         "codeact": CodeActAgent,
         "midwit": MidwitAgent,
         "tao": TaoAgent,
+        "code_alchemist": CodeAlchemistAgent,
     }
     TEST_REPO_DIR = Path("/Users/manna/data/test_repo")
     DATA_DIR = PROJECT_ROOT / "data/hugging_face"

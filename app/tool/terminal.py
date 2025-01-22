@@ -39,30 +39,45 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
         Returns:
             str: The output, and error of the command execution.
         """
-        sanitized_command = self._sanitize_command(command)
+        # Split the command by & to handle multiple commands
+        commands = [cmd.strip() for cmd in command.split('&') if cmd.strip()]
+        final_output = CLIResult(output="", error="")
 
-        # Handle 'cd' command internally
-        if sanitized_command.startswith("cd "):
-            return await self._handle_cd_command(sanitized_command)
+        for cmd in commands:
+            sanitized_command = self._sanitize_command(cmd)
 
-        async with self.lock:
-            try:
-                self.process = await asyncio.create_subprocess_shell(
-                    sanitized_command,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=self.current_path,
-                )
-                stdout, stderr = await self.process.communicate()
-                output = CLIResult(
-                    output=stdout.decode().strip(), error=stderr.decode().strip()
-                )
-            except Exception as e:
-                output = CLIResult(output="", error=str(e))
-            finally:
-                self.process = None
+            # Handle 'cd' command internally
+            if sanitized_command.lstrip().startswith("cd "):
+                result = await self._handle_cd_command(sanitized_command)
+            else:
+                async with self.lock:
+                    try:
+                        self.process = await asyncio.create_subprocess_shell(
+                            sanitized_command,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE,
+                            cwd=self.current_path,
+                        )
+                        stdout, stderr = await self.process.communicate()
+                        result = CLIResult(
+                            output=stdout.decode().strip(),
+                            error=stderr.decode().strip()
+                        )
+                    except Exception as e:
+                        result = CLIResult(output="", error=str(e))
+                    finally:
+                        self.process = None
 
-        return output
+            # Combine outputs
+            if result.output:
+                final_output.output += (result.output + "\n") if final_output.output else result.output
+            if result.error:
+                final_output.error += (result.error + "\n") if final_output.error else result.error
+
+        # Remove trailing newlines
+        final_output.output = final_output.output.rstrip()
+        final_output.error = final_output.error.rstrip()
+        return final_output
 
     async def execute_in_env(self, env_name: str, command: str) -> CLIResult:
         """
@@ -93,21 +108,32 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
         Returns:
             TerminalOutput: The result of the 'cd' command.
         """
-        parts = shlex.split(command)
-        if len(parts) < 2:
-            new_path = os.path.expanduser("~")
-        else:
-            new_path = os.path.expanduser(parts[1])
+        try:
+            parts = shlex.split(command)
+            if len(parts) < 2:
+                new_path = os.path.expanduser("~")
+            else:
+                new_path = os.path.expanduser(parts[1])
 
-        new_path = os.path.abspath(new_path)
+            # Handle relative paths
+            if not os.path.isabs(new_path):
+                new_path = os.path.join(self.current_path, new_path)
 
-        if os.path.isdir(new_path):
-            self.current_path = new_path
-            return CLIResult(
-                output=f"Changed directory to {self.current_path}", error=""
-            )
-        else:
-            return CLIResult(output="", error=f"No such directory: {new_path}")
+            new_path = os.path.abspath(new_path)
+
+            if os.path.isdir(new_path):
+                self.current_path = new_path
+                return CLIResult(
+                    output=f"Changed directory to {self.current_path}",
+                    error=""
+                )
+            else:
+                return CLIResult(
+                    output="",
+                    error=f"No such directory: {new_path}"
+                )
+        except Exception as e:
+            return CLIResult(output="", error=str(e))
 
     @staticmethod
     def _sanitize_command(command: str) -> str:
@@ -122,9 +148,14 @@ Note: You MUST append a `sleep 0.05` to the end of the command for commands that
         """
         # Example sanitization: restrict certain dangerous commands
         dangerous_commands = ["rm", "sudo", "shutdown", "reboot"]
-        parts = shlex.split(command)
-        if any(cmd in dangerous_commands for cmd in parts):
-            raise ValueError("Use of dangerous commands is restricted.")
+        try:
+            parts = shlex.split(command)
+            if any(cmd in dangerous_commands for cmd in parts):
+                raise ValueError("Use of dangerous commands is restricted.")
+        except Exception as e:
+            # If shlex.split fails, try basic string comparison
+            if any(cmd in command for cmd in dangerous_commands):
+                raise ValueError("Use of dangerous commands is restricted.")
 
         # Additional sanitization logic can be added here
         return command
