@@ -255,30 +255,27 @@ class BenchmarkRunner:
             instance, self.args.reclone_existing_repo
         )
 
-        try:
-            agent = DatasetConfig.AGENT_MAPPINGS[self.args.agent](
-                max_steps=self.args.max_steps
-            )
-            env_name = await self.get_env_name(instance)
-            if not hasattr(agent, "env_name") or not agent.env_name:
-                setattr(agent, "env_name", env_name)
-            user_requirement = self._prepare_requirement(instance, repo_path)
+        agent = DatasetConfig.AGENT_MAPPINGS[self.args.agent](
+            max_steps=self.args.max_steps
+        )
+        env_name = await self.get_env_name(instance)
+        if not hasattr(agent, "env_name") or not agent.env_name:
+            setattr(agent, "env_name", env_name)
+        user_requirement = self._prepare_requirement(instance, repo_path)
 
-            logger.info(f"**** Starting to run {instance['instance_id']} ****")
-            logger.info("User Requirement:\n" + user_requirement)
+        logger.info(f"**** Starting to run {instance['instance_id']} ****")
+        logger.info("User Requirement:\n" + user_requirement)
 
-            await agent.run(user_requirement)
-            logger.info(f"**** Finished running {instance['instance_id']} ****")
+        await agent.run(user_requirement)
+        logger.info(f"**** Finished running {instance['instance_id']} ****")
 
-            instance["model_name_or_path"] = agent.llm.model
+        instance["model_name_or_path"] = agent.llm.model
 
-            repo_path = self.repo_manager.get_repo_path(instance)
-            instance["model_patch"] = await self.generate_patch(repo_path)
-            logger.info(f"Model patch:\n{instance['model_patch']}")
+        repo_path = self.repo_manager.get_repo_path(instance)
+        instance["model_patch"] = await self.generate_patch(repo_path)
+        logger.info(f"Model patch:\n{instance['model_patch']}")
 
-            await self._save_predictions(instance)
-        except Exception as e:
-            logger.warning(f"**** Exception in {instance['instance_id']}: {e} ****")
+        await self._save_predictions(instance)
 
     @staticmethod
     async def get_env_name(instance):

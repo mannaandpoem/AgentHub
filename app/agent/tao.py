@@ -38,6 +38,7 @@ class TaoAgent(ToolCallAgent):
     max_steps: int = 30
 
     working_dir: str = "."
+    bash: Bash = Field(default_factory=Bash)
 
     async def run(self, requirement: Optional[str] = None) -> str:
         """Execute development task with given or existing requirement."""
@@ -54,8 +55,7 @@ class TaoAgent(ToolCallAgent):
     async def think(self) -> bool:
         """Process current state and decide next action"""
         # Update working directory
-        terminal = self.available_tools.get_tool("execute_command")
-        self.working_dir = await terminal.execute(command="pwd")
+        self.working_dir = await self.bash.execute(command="pwd")
         self.next_step_prompt = self.next_step_prompt.format(
             current_dir=self.working_dir
         )
