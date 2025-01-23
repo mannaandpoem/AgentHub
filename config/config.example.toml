@@ -4,11 +4,4 @@ model = "deepseek-chat"
 base_url = "https://api.deepseek.com/v1"
 api_key = "sk-..."
 max_tokens = 4096
-temperature = 1.0
-
-# Optional overrides for specific use cases
-[llm.swe]
-temperature = 0.8
-
-[llm.writing]
-max_tokens = 8192
+temperature = 0.0
