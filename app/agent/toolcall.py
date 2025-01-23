@@ -8,7 +8,7 @@ from app.agent.react import ReActAgent
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
-from app.tool import CreateChatCompletion, Terminate, ToolCollection
+from app.tool import Terminate, ToolCollection
 from app.tool.base import AgentAwareTool
 
 
@@ -23,7 +23,7 @@ class ToolCallAgent(ReActAgent):
 
     fixed_tools: Optional[ToolCollection] = None
     available_tools: ToolCollection = ToolCollection(
-        CreateChatCompletion(), Terminate()
+        Terminate()
     )
     tool_choices: Literal["none", "auto", "required"] = "auto"
     special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
@@ -110,7 +110,7 @@ class ToolCallAgent(ReActAgent):
 
         # FIXME: Implement fixed tool execution
         # Execute all tools sequentially
-        results = await self.fixed_tools.execute_all()
+        results = await self.fixed_tools.execute_all(agent=self)
 
         # Convert to string format and Log results
         str_results = "\n\n".join([str(r) for r in results])

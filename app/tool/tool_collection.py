@@ -1,5 +1,5 @@
 """Collection classes for managing multiple tools."""
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 from pydantic import BaseModel
 
@@ -32,11 +32,12 @@ class ToolCollection:
         except ToolError as e:
             return ToolFailure(error=e.message)
 
-    async def execute_all(self) -> List[ToolResult]:
+    async def execute_all(self, agent: Optional = None) -> List[ToolResult]:
         """Execute all tools in the collection sequentially."""
         results = []
         for tool in self.tools:
             try:
+                tool.agent = agent
                 result = await tool()
                 results.append(result)
             except ToolError as e:

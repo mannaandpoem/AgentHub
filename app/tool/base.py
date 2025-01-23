@@ -32,6 +32,13 @@ class BaseTool(ABC, BaseModel):
         }
 
 
+class FixedTool(BaseTool):
+    agent: Optional = None
+
+    async def execute(self, **kwargs) -> Any:
+        pass
+
+
 class ToolResult(BaseModel):
     """Represents the result of a tool execution."""
 
