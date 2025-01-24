@@ -1,7 +1,6 @@
 from typing import Optional
 
-from pydantic import field_validator
-
+from app.config import config
 from app.tool import BaseTool
 from app.tool.base import ToolResult
 
@@ -35,7 +34,8 @@ class ScreenshotTool(BaseTool):
         },
         "required": ["source"]
     }
-    screenshot_key: Optional[str] = None
+    screenshot_base_url: Optional[str] = config.screenshot.base_url if config.screenshot else None
+    screenshot_api_key: Optional[str] = config.screenshot.api_key if config.screenshot else None
 
     async def execute(
             self,
@@ -48,11 +48,11 @@ class ScreenshotTool(BaseTool):
             is_url = bool(urlparse(source).scheme)
 
             if is_url:
-                if not self.screenshot_key:
+                if not self.screenshot_api_key:
                     return ToolResult(
-                        error="API key is required for URL screenshots. Please provide 'screenshot_key' parameter."
+                        error="API key is required for URL screenshots. Please provide 'screenshot_api_key' parameter."
                     )
-                return await self._handle_url(source, self.screenshot_key, device)
+                return await self._handle_url(source, device)
             else:
                 return await self._handle_local_file(source, mime_type)
 
@@ -84,10 +84,10 @@ class ScreenshotTool(BaseTool):
             system=base64_image
         )
 
-    async def _handle_url(self, url: str, screenshot_key: str, device: str) -> ToolResult:
+    async def _handle_url(self, url: str, device: str) -> ToolResult:
         """Handle URL screenshot capture"""
         try:
-            image_bytes = await self._capture_screenshot(url, screenshot_key, device)
+            image_bytes = await self._capture_screenshot(url, self.screenshot_base_url,self.screenshot_api_key, device)
             base64_image = self._bytes_to_data_url(image_bytes, "image/png")
 
             return ToolResult(
@@ -97,12 +97,11 @@ class ScreenshotTool(BaseTool):
         except Exception as e:
             return ToolResult(error=f"Failed to capture screenshot: {str(e)}")
 
-    async def _capture_screenshot(self, target_url: str, screenshot_key: str, device: str) -> bytes:
+    @staticmethod
+    async def _capture_screenshot(target_url: str, base_url, screenshot_api_key: str, device: str) -> bytes:
         """Capture screenshot using screenshotone.com API"""
-        api_base_url = "https://api.screenshotone.com/take"
-
         params = {
-            "access_key": screenshot_key,
+            "access_key": screenshot_api_key,
             "url": target_url,
             "full_page": "true",
             "device_scale_factor": "1",
@@ -116,13 +115,14 @@ class ScreenshotTool(BaseTool):
         }
 
         async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.get(api_base_url, params=params)
+            response = await client.get(base_url, params=params)
             if response.status_code == 200 and response.content:
                 return response.content
             else:
                 raise Exception(f"API returned status code: {response.status_code}")
 
-    def _bytes_to_data_url(self, image_bytes: bytes, mime_type: str) -> str:
+    @staticmethod
+    def _bytes_to_data_url(image_bytes: bytes, mime_type: str) -> str:
         """Convert image bytes to base64 data URL"""
         base64_image = base64.b64encode(image_bytes).decode("utf-8")
         return f"data:{mime_type};base64,{base64_image}"
@@ -142,8 +142,7 @@ class ScreenshotTool(BaseTool):
 
 async def main():
     # Create the tool
-    screenshot_key = "..."
-    screenshot_tool = ScreenshotTool(screenshot_key=screenshot_key)
+    screenshot_tool = ScreenshotTool()
     # Local image example
     local_result = await screenshot_tool.execute(
         source="/Users/manna/PycharmProjects/AgentHub/img.png"

@@ -1,19 +1,18 @@
-from typing import Literal, Optional
+from typing import Optional
 from urllib.parse import urlparse
 
-from pydantic import field_validator
-
 from app.llm import LLM
-from app.prompt.snap_coder import REACT_TAILWIND_SYSTEM_PROMPT
+from app.prompt.screenshot_to_code import SYSTEM_PROMPTS, USER_PROMPTS
 from app.tool import BaseTool
 from app.tool.base import ToolResult
-from app.utils.extract_html_content import extract_html_content
+from app.tool.oh_editor import OHEditor
+from app.utils.extract_html_content import extract_code_content
 from app.tool.screenshot import ScreenshotTool
 
 
 class ScreenshotToCodeTool(BaseTool):
     name: str = "screenshot_to_code"
-    description: str = "Generates React/Tailwind code from a URL or local image"
+    description: str = "Generates frontend code from a URL or local image using various tech stacks"
     parameters: dict = {
         "type": "object",
         "properties": {
@@ -21,46 +20,76 @@ class ScreenshotToCodeTool(BaseTool):
                 "type": "string",
                 "description": "URL or local image path"
             },
-            "stack": {
-                "type": "string",
-                "enum": ["react-tailwind"],
-                "default": "react-tailwind",
-                "description": "Technology stack to generate code for"
-            },
-            "generation_type": {
-                "type": "string",
-                "enum": ["create", "update"],
-                "default": "create",
-                "description": "Whether to create new code or update existing code"
-            },
             "device": {
                 "type": "string",
                 "enum": ["desktop", "mobile"],
                 "default": "desktop",
                 "description": "Device type for screenshot capture"
+            },
+            "target_path": {
+                "type": "string",
+                "description": "File path to save the generated code"
+            },
+            "stack": {
+                "type": "string",
+                "enum": ["react-tailwind", "html-tailwind", "svg"],
+                "default": "react-tailwind",
+                "description": "Target technology stack for frontend code generation"
             }
         },
-        "required": ["source"]
+        "required": ["source", "target_path"]
     }
 
-    llm: LLM = LLM()
-    screenshot_key: Optional[str] = None
-    screenshot_tool: ScreenshotTool = ScreenshotTool(screenshot_key=screenshot_key)
+    llm: LLM = LLM("vision")
+    screenshot_tool: ScreenshotTool = ScreenshotTool()
+    editor: OHEditor = OHEditor()
 
-    @field_validator('screenshot_key')
-    @classmethod
-    def update_screenshot_tool(cls, value: Optional[str], info) -> Optional[str]:
-        instance = info.context.get('self')
-        if instance and value is not None:
-            instance.screenshot_tool.screenshot_key = value
-        return value
+    @staticmethod
+    def create_prompt_messages(
+            image_data: str,
+            stack: str,
+            result_image: Optional[str] = None
+    ) -> list:
+        system_content = SYSTEM_PROMPTS[stack]
+        user_prompt = USER_PROMPTS[stack]
+
+        user_content: list = [
+            {
+                "type": "image_url",
+                "image_url": {"url": image_data, "detail": "high"}
+            },
+            {
+                "type": "text",
+                "text": user_prompt
+            }
+        ]
+
+        if result_image:
+            user_content.insert(
+                1,
+                {
+                    "type": "image_url",
+                    "image_url": {"url": result_image, "detail": "high"}
+                }
+            )
+
+        return [
+            {
+                "role": "system",
+                "content": system_content
+            },
+            {
+                "role": "user",
+                "content": user_content
+            }
+        ]
 
     async def execute(
             self,
             source: str,
-            stack: str = "react-tailwind",
-            generation_type: Literal["create", "update"] = "create",
-            device: str = "desktop"
+            target_path: str,
+            device: str = "desktop",
+            stack: str = "react-tailwind"
     ) -> ToolResult:
         try:
             # Get screenshot or load image
@@ -72,64 +101,36 @@ class ScreenshotToCodeTool(BaseTool):
             if screenshot_result.error:
                 return ToolResult(error=f"Failed to get image: {screenshot_result.error}")
 
-            # Get base64 image data from screenshot result
-            image_data = screenshot_result.system
-
             # Create prompt messages
-            prompt_messages = [
-                {
-                    "role": "system",
-                    "content": REACT_TAILWIND_SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "image_url": image_data
-                        }
-                    ]
-                }
-            ]
+            prompt_messages = self.create_prompt_messages(
+                image_data=screenshot_result.system,
+                stack=stack
+            )
 
             # Generate code using LLM
-            rsp = await self.llm.ask(prompt_messages)
+            response = await self.llm.ask(prompt_messages)
 
-            # Extract HTML content
-            html_content = extract_html_content(rsp)
+            # Extract code content
+            code_content = extract_code_content(response, stack)
+
+            # Save generated code
+            await self.editor.execute(
+                command="create",
+                path=target_path,
+                file_text=code_content
+            )
+
+            # View the generated code
+            view_result = await self.editor.execute(
+                command="view",
+                path=target_path
+            )
 
             return ToolResult(
-                output=f"Successfully generated code from {'URL' if urlparse(source).scheme else 'local image'}",
-                system=html_content
+                output=f"Successfully generated code from {'URL' if urlparse(source).scheme else 'local image'} to {target_path}.\n{str(view_result)}",
             )
 
         except Exception as e:
             return ToolResult(
                 error=f"Code generation failed: {str(e)}"
             )
-
-
-async def main():
-    # Initialize tool
-    tool = ScreenshotToCodeTool()
-
-    # Generate code from local image
-    result = await tool.execute(
-        source="/Users/manna/PycharmProjects/AgentHub/img.png",
-    )
-
-    if result.error:
-        print(f"Error: {result.error}")
-    else:
-        print(f"Success: {result.output}")
-        print(f"Generated HTML: {result.system}")
-
-    # Save generated code to file
-    with open("generated_code.html", "w") as f:
-        f.write(result.system)
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())

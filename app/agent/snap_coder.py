@@ -1,10 +1,10 @@
 from app.agent import ToolCallAgent
 from typing import List
 
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from app.prompt.snap_coder import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.tool import Finish, ToolCollection, Bash
+from app.tool import ToolCollection, Bash, Finish
 from app.tool.oh_editor import OHEditor
 from app.tool.screenshot_to_code import ScreenshotToCodeTool
 
@@ -19,19 +19,12 @@ class SnapCoder(ToolCallAgent):
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     available_tools: ToolCollection = ToolCollection(
-        ScreenshotToCodeTool(), Finish()
+        Bash(),
+        OHEditor(),
+        ScreenshotToCodeTool(),
+        Finish()
     )
 
     special_tool_names: List[str] = Field(default_factory=lambda: [Finish().name])
 
     max_steps: int = 30
-
-    screenshot_key: str = Field(default=None)
-
-    @model_validator(mode='after')
-    def update_screenshot_tool_key(self) -> 'SnapCoder':
-        if self.screenshot_key is not None:
-            # Find ScreenshotToCodeTool instance and update it
-            if screenshot_to_code_tool := self.available_tools.get_tool("screenshot_to_code"):
-                screenshot_to_code_tool.screenshot_key = self.screenshot_key
-        return self

@@ -1,7 +1,7 @@
 import threading
 import tomllib
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
 
@@ -25,8 +25,14 @@ class LLMSettings(BaseModel):
     temperature: float = Field(1.0, description="Sampling temperature")
 
 
+class ScreenshotSettings(BaseModel):
+    api_key: Optional[str] = Field(None, description="Screenshot API key")
+    base_url: Optional[str] = Field(None, description="Screenshot service URL")
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
+    screenshot: Optional[ScreenshotSettings] = None
 
 
 class Config:
@@ -90,7 +96,15 @@ class Config:
             }
         }
 
+        # Add screenshot config if present
+        if screenshot_config := raw_config.get("screenshot"):
+            config_dict["screenshot"] = screenshot_config
+
         self._config = AppConfig(**config_dict)
+
+    @property
+    def screenshot(self) -> Optional[ScreenshotSettings]:
+        return self._config.screenshot
 
     @property
     def llm(self) -> Dict[str, LLMSettings]:

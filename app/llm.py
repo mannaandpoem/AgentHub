@@ -1,9 +1,10 @@
-from typing import List, Literal, Optional, Dict
+from typing import List, Literal, Optional, Dict, Union
 
 from openai import AsyncOpenAI
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from app.config import LLMSettings, config
+from app.schema import Message
 
 
 class LLM:
@@ -25,14 +26,56 @@ class LLM:
             self.temperature = llm_config.temperature
             self.client = AsyncOpenAI(api_key=llm_config.api_key, base_url=llm_config.base_url)
 
+    @staticmethod
+    def format_messages(messages: List[Union[dict, Message]]) -> List[dict]:
+        """
+        Format messages for LLM by converting them to OpenAI message format.
+
+        Args:
+            messages: List of messages that can be either dict or Message objects
+
+        Returns:
+            List[dict]: List of formatted messages in OpenAI format
+
+        Examples:
+            >>> msgs = [
+            ...     Message.system_message("You are a helpful assistant"),
+            ...     {"role": "user", "content": "Hello"},
+            ...     Message.user_message("How are you?")
+            ... ]
+            >>> formatted = LLM.format_messages(msgs)
+        """
+        formatted_messages = []
+
+        for message in messages:
+            if isinstance(message, dict):
+                # If message is already a dict, ensure it has required fields
+                if "role" not in message:
+                    raise ValueError("Message dict must contain 'role' field")
+                formatted_messages.append(message)
+            elif isinstance(message, Message):
+                # If message is a Message object, convert it to dict
+                formatted_messages.append(message.to_dict())
+            else:
+                raise TypeError(f"Unsupported message type: {type(message)}")
+
+        # Validate all messages have required fields
+        for msg in formatted_messages:
+            if msg["role"] not in ["system", "user", "assistant", "tool"]:
+                raise ValueError(f"Invalid role: {msg['role']}")
+            if "content" not in msg and "tool_calls" not in msg:
+                raise ValueError("Message must contain either 'content' or 'tool_calls'")
+
+        return formatted_messages
+
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
     )
     async def ask(
             self,
-            messages: List[dict],
-            system_msgs: Optional[str] = None,
+            messages: List[Union[dict, Message]],
+            system_msgs: Optional[List[Union[dict, Message]]] = None,
             stream: bool = True,
     ) -> str:
         """
@@ -49,6 +92,8 @@ class LLM:
         # Construct messages
         if system_msgs:
             messages = [{"role": "system", "content": system_msgs}] + messages
+
+        messages = self.format_messages(messages)
 
         if not stream:
             # For non-streaming requests
@@ -89,8 +134,8 @@ class LLM:
     )
     async def ask_tool(
         self,
-        messages: List[dict],
-        system_msgs: Optional[List[str]] = None,
+        messages: List[Union[dict, Message]],
+        system_msgs: Optional[List[Union[dict, Message]]] = None,
         timeout: int = 60,
         tools: Optional[List[dict]] = None,
         tool_choice: Literal["none", "auto", "required"] = "auto",
@@ -112,9 +157,9 @@ class LLM:
         """
         # Add system messages if provided
         if system_msgs:
-            messages = [
-                {"role": "system", "content": msg} for msg in system_msgs
-            ] + messages
+            messages = system_msgs + messages
+
+        messages = self.format_messages(messages)
 
         # Set up the completion requirement
         response = await self.client.chat.completions.create(

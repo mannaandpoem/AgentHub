@@ -127,7 +127,7 @@ class ToolCallAgent(ReActAgent):
 
         response = await self.llm.ask_tool(
             messages=messages,
-            system_msgs=[self.system_prompt] if self.system_prompt else None,
+            system_msgs=Message.system_message(self.system_prompt) if self.system_prompt else None,
             tools=self.available_tools.to_params(),
             tool_choice=self.tool_choices,
         )
