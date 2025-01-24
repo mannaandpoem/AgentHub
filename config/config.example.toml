@@ -5,3 +5,14 @@ base_url = "https://api.deepseek.com/v1"
 api_key = "sk-..."
 max_tokens = 4096
 temperature = 0.0
+
+# Optional configuration for specific LLM models
+[llm.vision]
+model = "..."
+base_url = "..."
+api_key = "sk-..."
+
+# Optional configuration for screenshotone API
+[screenshot]
+api_key = "..."
+base_url = "https://api.screenshotone.com/take"
