@@ -1,15 +1,13 @@
-import asyncio
 import json
 from typing import Any, List, Literal, Optional
 
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from app.agent.react import ReActAgent
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
-from app.tool.base import AgentAwareTool
 
 
 class ToolCallAgent(ReActAgent):
@@ -21,7 +19,6 @@ class ToolCallAgent(ReActAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    fixed_tools: Optional[ToolCollection] = None
     available_tools: ToolCollection = ToolCollection(
         CreateChatCompletion(), Terminate()
     )
@@ -35,15 +32,6 @@ class ToolCallAgent(ReActAgent):
     duplicate_threshold: int = (
         2  # Number of allowed identical responses before considering stuck
     )
-
-    @model_validator(mode="after")
-    def _setup_aware_tools(self) -> "ToolCallAgent":
-        """Configure agent-aware tools with reference to this agent."""
-        if self.fixed_tools:
-            for tool in self.fixed_tools:
-                if isinstance(tool, AgentAwareTool):
-                    tool.agent = self
-        return self
 
     def is_stuck(self) -> bool:
         """Check if the agent is stuck in a loop by detecting duplicate content"""
@@ -80,8 +68,6 @@ class ToolCallAgent(ReActAgent):
             while self.current_step < self.max_steps:
                 self.current_step += 1
 
-                await self.fixed_act()
-
                 # Think phase
                 should_act = await self.think()
                 if not should_act:
@@ -102,21 +88,6 @@ class ToolCallAgent(ReActAgent):
                     break
 
             return "\n".join(results)
-
-    async def fixed_act(self) -> str:
-        """Execute fixed tool before agent decision"""
-        if not self.fixed_tools:
-            return ""
-
-        # FIXME: Implement fixed tool execution
-        # Execute all tools sequentially
-        results = await self.fixed_tools.execute_all()
-
-        # Convert to string format and Log results
-        str_results = "\n\n".join([str(r) for r in results])
-        logger.info(f"Fixed action result: {str_results}")
-
-        return str_results
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
