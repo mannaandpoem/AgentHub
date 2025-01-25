@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import multiprocessing
+import platform
 import time
 import uuid
 
@@ -28,15 +29,17 @@ class BrowserEnv:
         self.html_text_converter = self.get_html_text_converter()
         self.eval_mode = False
         self.eval_dir = ""
-
-        # EVAL only: browsergym_eval_env must be provided for evaluation
         self.browsergym_eval_env = browsergym_eval_env
         self.eval_mode = bool(browsergym_eval_env)
 
-        # Initialize browser environment process
-        multiprocessing.set_start_method("spawn", force=True)
-        self.browser_side, self.agent_side = multiprocessing.Pipe()
+        # Set multiprocessing start method
+        if platform.system() == "Windows":
+            multiprocessing.set_start_method("spawn", force=True)
+        else:
+            multiprocessing.set_start_method("fork", force=True)
 
+        self.browser_side, self.agent_side = multiprocessing.Pipe()
+        self.process = None  # Initialize process as None
         self.init_browser()
         atexit.register(self.close)
 
@@ -63,7 +66,9 @@ class BrowserEnv:
             self.process.start()
         except Exception as e:
             logger.error(f"Failed to start browser process: {e}")
-            raise
+            if self.process is not None:
+                self.process.terminate()
+            raise BrowserException("Failed to start browser environment.")
 
         if not self.check_alive():
             self.close()
