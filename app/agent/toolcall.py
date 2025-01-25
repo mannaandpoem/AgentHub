@@ -9,6 +9,9 @@ from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message, ToolCall
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
 
+NO_TOOL_CALL_REQUIRED = "No tool call required"
+TOOL_CALL_REQUIRED = "Tool calls required but none provided"
+
 
 class ToolCallAgent(ReActAgent):
     """Base agent class for handling tool/function calls with enhanced abstraction"""
@@ -68,26 +71,33 @@ class ToolCallAgent(ReActAgent):
             while self.current_step < self.max_steps:
                 self.current_step += 1
 
-                # Think phase
-                should_act = await self.think()
-                if not should_act:
+                # Execute a step
+                result = await self.step()
+                if result == NO_TOOL_CALL_REQUIRED:
                     if self.tool_choices == "required":
-                        raise ValueError("Tool calls required but none provided")
-                    results.append("Thinking complete - no action needed")
+                        raise ValueError(TOOL_CALL_REQUIRED)
+                    results.append(result)
                     break
 
                 # Check for stuck state
                 if self.is_stuck():
                     self.handle_stuck_state()
 
-                # Act phase
-                result = await self.act()
                 results.append(f"Step {self.current_step}: {result}")
 
                 if self.state == AgentState.FINISHED:
                     break
 
             return "\n".join(results)
+
+    async def step(self) -> str:
+        """Execute a single step: think and act."""
+        should_act = await self.think()
+        if not should_act:
+            return NO_TOOL_CALL_REQUIRED
+
+        result = await self.act()
+        return result
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
@@ -139,7 +149,7 @@ class ToolCallAgent(ReActAgent):
         """Execute tool calls and handle their results"""
         if not self.tool_calls:
             if self.tool_choices == "required":
-                raise ValueError("Tool calls required but none provided")
+                raise ValueError(TOOL_CALL_REQUIRED)
 
             # Handle as regular message in auto mode
             return (
