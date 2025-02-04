@@ -77,6 +77,7 @@ class LLM:
             messages: List[Union[dict, Message]],
             system_msgs: Optional[List[Union[dict, Message]]] = None,
             stream: bool = True,
+            temperature: Optional[float] = None,
     ) -> str:
         """
         Send a prompt to the LLM and get the response.
@@ -85,6 +86,7 @@ class LLM:
             messages: List of conversation messages
             system_msgs: Optional system messages to prepend
             stream (bool): Whether to stream the response.
+            temperature (float): Sampling temperature for the response.
 
         Returns:
             str: The generated response.
@@ -101,7 +103,7 @@ class LLM:
                 model=self.model,
                 messages=messages,
                 max_tokens=self.max_tokens,
-                temperature=self.temperature,
+                temperature=temperature or self.temperature,
                 stream=False,
             )
             return response.choices[0].message.content
@@ -111,7 +113,7 @@ class LLM:
             model=self.model,
             messages=messages,
             max_tokens=self.max_tokens,
-            temperature=self.temperature,
+            temperature=temperature or self.temperature,
             stream=True,
         )
 
@@ -139,6 +141,7 @@ class LLM:
         timeout: int = 60,
         tools: Optional[List[dict]] = None,
         tool_choice: Literal["none", "auto", "required"] = "auto",
+        temperature: Optional[float] = None,
         **kwargs,
     ):
         """
@@ -150,6 +153,7 @@ class LLM:
             timeout: Request timeout in seconds
             tools: List of tools to use
             tool_choice: Tool choice strategy
+            temperature: Sampling temperature for the response
             **kwargs: Additional completion arguments
 
         Returns:
@@ -165,7 +169,7 @@ class LLM:
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
-            temperature=self.temperature,
+            temperature=temperature or self.temperature,
             max_tokens=self.max_tokens,
             tools=tools,
             tool_choice=tool_choice,
