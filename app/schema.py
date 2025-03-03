@@ -8,6 +8,7 @@ class AgentState(str, Enum):
     """Agent execution states"""
 
     IDLE = "IDLE"
+    INITIALIZING = "INITIALIZING"
     RUNNING = "RUNNING"
     FINISHED = "FINISHED"
     ERROR = "ERROR"

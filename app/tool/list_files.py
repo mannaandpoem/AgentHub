@@ -194,3 +194,10 @@ Do not use this tool to confirm the existence of files you may have created.
             files=results, limit_reached=len(results) >= self.files_limit
         )
         return result.replace(output=result.to_string(relative_to=dir_path))
+
+
+if __name__ == '__main__':
+    tool = ListFiles()
+    import asyncio
+    result = asyncio.run(tool.execute(directory_path='/Users/manna/PycharmProjects/AgentHub', recursive=True))
+    print(result.output)

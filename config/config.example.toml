@@ -1,3 +1,6 @@
+# AgentHub Configuration File
+# This is an example configuration file. Copy to config.toml and modify as needed.
+
 # Global LLM configuration
 [llm]
 model = "deepseek-chat"
@@ -5,6 +8,22 @@ base_url = "https://api.deepseek.com/v1"
 api_key = "sk-..."
 max_tokens = 4096
 temperature = 0.0
+
+# LLM Override for OpenAI
+[llm.openai]
+model = "gpt-4"
+base_url = "https://api.openai.com/v1"
+api_key = "your-api-key-here"
+max_tokens = 4096
+temperature = 0.7
+
+# LLM Override for Claude
+[llm.claude]
+model = "claude-3-opus-20240229"
+base_url = "https://api.anthropic.com/v1"
+api_key = "your-claude-api-key-here"
+max_tokens = 4096
+temperature = 0.7
 
 # Optional configuration for specific LLM models
 [llm.vision]
@@ -16,3 +35,43 @@ api_key = "sk-..."
 [screenshot]
 api_key = "..."
 base_url = "https://api.screenshotone.com/take"
+
+# API Configuration
+[api]
+host = "0.0.0.0"
+port = 8000
+debug = false
+
+# Agent Configuration
+[agents]
+max_active = 10
+timeout = 300
+default_type = "toolcall"
+
+# Security Configuration
+[security]
+require_auth = false
+allowed_origins = ["http://localhost:3000"]
+
+# Logging Configuration
+[logging]
+level = "info"
+file = "agenthub.log"
+
+# Tools Configuration
+[tools]
+allowed = [
+    "terminal",
+    "view",
+    "write_code",
+    "search_file",
+    "create_chat_completion",
+    "browser",
+    "finish"
+]
+
+# Browser Configuration
+[browser]
+headless = true
+timeout = 30
+screenshots_dir = "./screenshots"

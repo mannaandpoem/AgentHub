@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0f172a;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+}
+
+.code-block {
+  @apply bg-gray-800 p-4 rounded-md overflow-auto text-sm my-2;
+}
+
+.terminal-output {
+  @apply bg-black p-4 rounded-md overflow-auto text-sm my-2 text-green-400 font-mono;
+}
+
+.agent-log {
+  @apply border-l-4 px-4 py-2 my-2 rounded;
+}
+
+.agent-log-info {
+  @apply border-blue-500 bg-blue-950;
+}
+
+.agent-log-error {
+  @apply border-red-500 bg-red-950;
+}
+
+.agent-log-success {
+  @apply border-green-500 bg-green-950;
+}
+
+.agent-log-warning {
+  @apply border-yellow-500 bg-yellow-950;
+}
+
+/* Tailwind components */
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
+  }
+
+  .btn-primary {
+    @apply btn bg-blue-600 hover:bg-blue-700 text-white;
+  }
+
+  .btn-secondary {
+    @apply btn bg-gray-600 hover:bg-gray-700 text-white;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 hover:bg-red-700 text-white;
+  }
+
+  .card {
+    @apply bg-slate-800 rounded-lg shadow-md overflow-hidden;
+  }
+
+  .card-header {
+    @apply bg-slate-700 p-4 border-b border-slate-600;
+  }
+
+  .card-body {
+    @apply p-4;
+  }
+}
