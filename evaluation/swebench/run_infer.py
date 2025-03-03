@@ -48,6 +48,30 @@ SOLUTION_STEPS_WITHOUT_REPRODUCE = """1. Find and read code relevant to the <pr_
 2. Edit the sourcecode of the repo to resolve the issue
 """
 
+INC_INSTANCE_TEMPLATE = f"""
+<uploaded_files>
+{{working_dir}}
+</uploaded_files>
+I've uploaded a python code repository in the directory {{working_dir}}. Consider the following PR description:
+
+<pr_description>
+{{problem_statement}}
+</pr_description>
+
+Can you help me implement the necessary incremental changes to the repository so that the requirements specified in the <pr_description> are met? 
+Typically, this involves modifying one or two files only, including the possibility of updating test case files if needed.
+Your task is to make the minimal incremental changes to non-test files in the {{working_dir}} directory to ensure the <pr_description> is satisfied.
+Follow these steps to resolve the issue:
+{{solution_steps}}
+"""
+
+INC_SOLUTION_STEPS = """1. Identify the existing functionalities related to the <pr_description> that can be enhanced or modified.
+2. Implement the incremental changes in the relevant source code files, including any necessary updates to test case files.
+3. Document the changes made and how they relate to the <pr_description>.
+4. Consider potential edge cases and ensure that the new implementation handles them appropriately.
+Your approach should be systematic and thorough.
+"""
+
 
 class DatasetConfig:
     """Configuration for dataset management"""
@@ -290,7 +314,7 @@ class BenchmarkRunner:
 
     @staticmethod
     def _prepare_requirement(instance: dict, repo_path: Path) -> str:
-        """Prepare user requirement text"""
+        """Prepare user request text"""
         return INSTANCE_TEMPLATE.format(
             problem_statement=instance["problem_statement"],
             hints_text=instance["hints_text"],

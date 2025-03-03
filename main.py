@@ -1,16 +1,16 @@
 import asyncio
 
-from app.agent import ToolCallAgent
+from app.agent import CodeActAgent
 from app.logger import logger
-from app.tool import Browser, Terminal, WebRead
+from app.tool.create_web_template import CreateWebTemplate
+from app.tool.deploy_web_project import DeployWebProject
 
 
 async def main():
-    agent = ToolCallAgent()
+    agent = CodeActAgent()
     agent.available_tools.add_tools(
-        Terminal(),
-        Browser(),
-        WebRead(),
+        CreateWebTemplate(),
+        DeployWebProject(),
     )
     while True:
         try:
@@ -18,7 +18,7 @@ async def main():
             if prompt.lower() == "exit":
                 logger.info("Goodbye!")
                 break
-            logger.warning("Processing your requirement...")
+            logger.warning("Processing your request...")
             await agent.run(prompt)
         except KeyboardInterrupt:
             logger.warning("Goodbye!")

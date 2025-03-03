@@ -1,10 +1,11 @@
 from typing import List, Literal, Optional, Dict, Union
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAIError, AuthenticationError, RateLimitError, APIError
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from app.config import LLMSettings, config
 from app.schema import Message
+from app.logger import logger  # Assuming a logger is set up in your app
 
 
 class LLM:
@@ -36,6 +37,10 @@ class LLM:
 
         Returns:
             List[dict]: List of formatted messages in OpenAI format
+
+        Raises:
+            ValueError: If messages are invalid or missing required fields
+            TypeError: If unsupported message types are provided
 
         Examples:
             >>> msgs = [
@@ -73,11 +78,11 @@ class LLM:
         stop=stop_after_attempt(6),
     )
     async def ask(
-            self,
-            messages: List[Union[dict, Message]],
-            system_msgs: Optional[List[Union[dict, Message]]] = None,
-            stream: bool = True,
-            temperature: Optional[float] = None,
+        self,
+        messages: List[Union[dict, Message]],
+        system_msgs: Optional[List[Union[dict, Message]]] = None,
+        stream: bool = True,
+        temperature: Optional[float] = None,
     ) -> str:
         """
         Send a prompt to the LLM and get the response.
@@ -85,50 +90,68 @@ class LLM:
         Args:
             messages: List of conversation messages
             system_msgs: Optional system messages to prepend
-            stream (bool): Whether to stream the response.
-            temperature (float): Sampling temperature for the response.
+            stream (bool): Whether to stream the response
+            temperature (float): Sampling temperature for the response
 
         Returns:
-            str: The generated response.
+            str: The generated response
+
+        Raises:
+            ValueError: If messages are invalid or response is empty
+            OpenAIError: If API call fails after retries
+            Exception: For unexpected errors
         """
-        # Construct messages
-        if system_msgs:
-            messages = [{"role": "system", "content": system_msgs}] + messages
+        try:
+            # Format system and user messages
+            if system_msgs:
+                system_msgs = self.format_messages(system_msgs)
+                messages = system_msgs + self.format_messages(messages)
+            else:
+                messages = self.format_messages(messages)
 
-        messages = self.format_messages(messages)
+            if not stream:
+                # Non-streaming request
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    temperature=temperature or self.temperature,
+                    stream=False,
+                )
+                if not response.choices or not response.choices[0].message.content:
+                    raise ValueError("Empty or invalid response from LLM")
+                return response.choices[0].message.content
 
-        if not stream:
-            # For non-streaming requests
+            # Streaming request
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 max_tokens=self.max_tokens,
                 temperature=temperature or self.temperature,
-                stream=False,
+                stream=True,
             )
-            return response.choices[0].message.content
 
-        # For streaming requests
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            max_tokens=self.max_tokens,
-            temperature=temperature or self.temperature,
-            stream=True,
-        )
+            collected_messages = []
+            async for chunk in response:
+                chunk_message = chunk.choices[0].delta.content or ""
+                collected_messages.append(chunk_message)
+                print(chunk_message, end="", flush=True)
 
-        collected_messages = []
+            print()  # Newline after streaming
+            full_response = "".join(collected_messages).strip()
+            if not full_response:
+                raise ValueError("Empty response from streaming LLM")
+            return full_response
 
-        async for chunk in response:
-            # Collect each streaming chunk
-            chunk_message = chunk.choices[0].delta.content or ""
-            collected_messages.append(chunk_message)
-
-            # Optionally print the chunk to the console
-            print(chunk_message, end="", flush=True)
-
-        print()  # Newline after streaming
-        return "".join(collected_messages).strip()
+        except ValueError as ve:
+            logger.error(f"Validation error: {ve}")
+            raise
+        except OpenAIError as oe:
+            logger.error(f"OpenAI API error: {oe}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in ask: {e}")
+            raise
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
@@ -158,24 +181,60 @@ class LLM:
 
         Returns:
             ChatCompletionMessage: The model's response
+
+        Raises:
+            ValueError: If tools, tool_choice, or messages are invalid
+            OpenAIError: If API call fails after retries
+            Exception: For unexpected errors
         """
-        # Add system messages if provided
-        if system_msgs:
-            messages = system_msgs + messages
+        try:
+            # Validate tool_choice
+            if tool_choice not in ["none", "auto", "required"]:
+                raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
-        messages = self.format_messages(messages)
+            # Format messages
+            if system_msgs:
+                system_msgs = self.format_messages(system_msgs)
+                messages = system_msgs + self.format_messages(messages)
+            else:
+                messages = self.format_messages(messages)
 
-        # Set up the completion requirement
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature or self.temperature,
-            max_tokens=self.max_tokens,
-            tools=tools,
-            tool_choice=tool_choice,
-            timeout=timeout,
-            **kwargs,
-        )
+            # Validate tools if provided
+            if tools:
+                for tool in tools:
+                    if not isinstance(tool, dict) or "type" not in tool:
+                        raise ValueError("Each tool must be a dict with 'type' field")
 
-        # Return the first message
-        return response.choices[0].message
+            # Set up the completion request
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature or self.temperature,
+                max_tokens=self.max_tokens,
+                tools=tools,
+                tool_choice=tool_choice,
+                timeout=timeout,
+                **kwargs,
+            )
+
+            # Check if response is valid
+            if not response.choices or not response.choices[0].message:
+                print(response)
+                raise ValueError("Invalid or empty response from LLM")
+
+            return response.choices[0].message
+
+        except ValueError as ve:
+            logger.error(f"Validation error in ask_tool: {ve}")
+            raise
+        except OpenAIError as oe:
+            if isinstance(oe, AuthenticationError):
+                logger.error("Authentication failed. Check API key.")
+            elif isinstance(oe, RateLimitError):
+                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
+            elif isinstance(oe, APIError):
+                logger.error(f"API error: {oe}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in ask_tool: {e}")
+            raise

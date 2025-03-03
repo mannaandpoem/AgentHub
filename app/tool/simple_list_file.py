@@ -1,23 +1,15 @@
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Set, Union
-
-from pydantic import Field
-
-from app.tool.base import BaseTool, ToolResult
+from typing import List, Set, Optional
 
 
-# Constants
-FILES_LIMIT = 100000
-TIMEOUT_SECONDS = 10
-
-
-class ListFilesResult(ToolResult):
+class ListFilesResult:
     """Result class for ListFiles tool containing the list of found files."""
 
-    files: List[Path] = Field(default_factory=list)
-    limit_reached: bool = Field(default=False)
+    def __init__(self, files: List[Path], limit_reached: bool):
+        self.files = files
+        self.limit_reached = limit_reached
 
     def to_string(self, relative_to: Optional[Path] = None) -> str:
         """Convert the file list to a tree-structured string.
@@ -68,51 +60,38 @@ class ListFilesResult(ToolResult):
         return output
 
 
-class ListFiles(BaseTool):
-    name: str = "list_files"
-    description: str = """
-List files and directories within the specified directory.
-If recursive is true, it will list all files and directories recursively.
-If recursive is false, it will only list the top-level contents.
-Do not use this tool to confirm the existence of files you may have created.
-"""
-    parameters: dict = {
-        "type": "object",
-        "properties": {
-            "directory_path": {
-                "type": "string",
-                "description": "(required) The absolute path of the directory to list contents for.",
-            },
-            "recursive": {
-                "type": "boolean",
-                "description": "(required) Whether to list files recursively.",
-            },
-        },
-        "required": ["directory_path", "recursive"],
-    }
+class SimpleListFiles:
+    name = "list_files"
+    description = """
+    List files and directories within the specified directory.
+    This tool can traverse directories recursively and list all files.
+    It is suitable for exploring filesystems but not for file existence checks.
+    """
 
-    files_limit: int = FILES_LIMIT
+    FILES_LIMIT = 100000
+    TIMEOUT_SECONDS = 10
 
     @staticmethod
     def is_root_or_home(dir_path: Path) -> bool:
         """Check if the given path is root or home directory."""
         root = Path(os.path.abspath(os.sep))
         home = Path.home()
-        return dir_path in (root, home)
+        return dir_path == root or dir_path == home
 
     @staticmethod
     def should_ignore(path: Path, ignore_patterns: Set[str]) -> bool:
         """Check if the path should be ignored based on patterns."""
         return any(part in ignore_patterns for part in path.parts)
 
-    async def execute(self, directory_path: Union[str, Path], recursive: bool) -> ListFilesResult:
+    @staticmethod
+    def list_files(directory_path: Path, recursive: bool = True) -> ListFilesResult:
         """Execute the list_files tool with given parameters."""
-        dir_path = directory_path if isinstance(directory_path, Path) else Path(directory_path).resolve()
+        dir_path = directory_path.resolve()
 
         # Check for root/home directory
-        if self.is_root_or_home(dir_path):
+        if SimpleListFiles.is_root_or_home(dir_path):
             return ListFilesResult(
-                error=f"Access denied: Cannot list {dir_path} (root or home directory)"
+                files=[], limit_reached=False
             )
 
         # Initialize variables
@@ -150,11 +129,10 @@ Do not use this tool to confirm the existence of files you may have created.
             'README.md',
         }
 
-        while queue and len(results) < self.files_limit:
+        while queue and len(results) < SimpleListFiles.FILES_LIMIT:
             # Check timeout
-            if time.time() - start_time > TIMEOUT_SECONDS:
-                result = ListFilesResult(files=results, limit_reached=True)
-                return result.replace(output=result.to_string(relative_to=dir_path))
+            if time.time() - start_time > SimpleListFiles.TIMEOUT_SECONDS:
+                return ListFilesResult(files=results, limit_reached=True)
 
             current_dir = queue.pop(0)
             if current_dir in visited:
@@ -164,33 +142,29 @@ Do not use this tool to confirm the existence of files you may have created.
 
             try:
                 for entry in os.scandir(current_dir):
-                    if len(results) >= self.files_limit:
-                        result = ListFilesResult(files=results, limit_reached=True)
-                        return result.replace(
-                            output=result.to_string(relative_to=dir_path)
-                        )
-
                     entry_path = Path(entry.path)
 
                     # Skip if should be ignored
-                    if self.should_ignore(entry_path, ignore_patterns):
+                    if SimpleListFiles.should_ignore(entry_path, ignore_patterns):
                         continue
 
-                    # Add to results if not the root directory
-                    # It should be python file only
-                    if entry_path != dir_path and entry_path.suffix == ".py":
+                    # Add files (Python files only)
+                    if entry.is_file() and entry_path.suffix == ".py":
                         results.append(entry_path)
 
                     # Add directory to queue if recursive
                     if recursive and entry.is_dir() and not entry.name.startswith("."):
                         queue.append(entry_path)
 
+                    # Check file limit
+                    if len(results) >= SimpleListFiles.FILES_LIMIT:
+                        break
+
             except PermissionError:
                 continue
             except OSError:
                 continue
 
-        result = ListFilesResult(
-            files=results, limit_reached=len(results) >= self.files_limit
+        return ListFilesResult(
+            files=results, limit_reached=len(results) >= SimpleListFiles.FILES_LIMIT
         )
-        return result.replace(output=result.to_string(relative_to=dir_path))
